@@ -1,0 +1,2 @@
+examples/01_full_adder_comb/rtl/full_adder_comb.sv
+examples/02_adder_pipeline/rtl/adder_pipeline.sv

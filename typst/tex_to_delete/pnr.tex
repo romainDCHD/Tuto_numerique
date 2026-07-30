@@ -1,0 +1,738 @@
+\documentclass[11pt,a4paper,openany]{report}
+
+% Fichier autonome : téléverser uniquement pnr.tex dans Overleaf.
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,margin=24mm,headheight=15pt]{geometry}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{bookmark}
+
+\definecolor{GuideBlue}{HTML}{174A7E}
+\definecolor{GuideGreen}{HTML}{237A57}
+\definecolor{GuideOrange}{HTML}{B45F06}
+\definecolor{GuideRed}{HTML}{A61B1B}
+\definecolor{GuideGray}{HTML}{F4F5F7}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=GuideBlue,
+  urlcolor=GuideBlue,
+  pdftitle={Implémentation physique avec Innovus},
+  pdfauthor={Karim Sabra}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\small\nouppercase{\leftmark}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setcounter{tocdepth}{0}
+\setlist{nosep,leftmargin=*}
+
+\lstdefinelanguage{TclGuide}{
+  morekeywords={set,proc,if,elseif,else,foreach,return,error,catch,puts,exit,
+    source,global,file,info,dict,string,open,close,lappend,init_design,
+    globalNetConnect,applyGlobalNets,checkDesign,floorPlan,defOut,placeDesign,
+    checkPlace,setDesignMode,routeDesign,saveDesign,saveNetlist,redirect,
+    create_constraint_mode,create_library_set,create_rc_corner,
+    create_delay_corner,create_analysis_view,set_analysis_view,addRing,sroute,
+    verifyConnectivity,create_ccopt_clock_tree_spec,ccopt_design,optDesign,
+    verify_drc,verifyProcessAntenna,timeDesign,extractRC,rcOut,
+    streamOut,saveNetlist,addFiller,report_timing},
+  sensitive=true,
+  morecomment=[l]{\#},
+  morestring=[b]"
+}
+
+\lstdefinestyle{guidecode}{
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{GuideBlue}\bfseries,
+  commentstyle=\color{GuideGreen},
+  stringstyle=\color{GuideOrange},
+  backgroundcolor=\color{GuideGray},
+  frame=single,
+  rulecolor=\color{black!20},
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  breaklines=true,
+  tabsize=2,
+  numbers=left,
+  numberstyle=\tiny\color{black!50},
+  xleftmargin=1.5em,
+  literate=
+    {à}{{\`a}}1 {ç}{{\c c}}1 {é}{{\'e}}1 {è}{{\`e}}1
+    {ê}{{\^e}}1 {î}{{\^i}}1 {ô}{{\^o}}1 {ù}{{\`u}}1
+}
+
+\newtcolorbox{keybox}[1][À retenir]{
+  breakable,colback=GuideBlue!5,colframe=GuideBlue,title=\textbf{#1}}
+\newtcolorbox{warningbox}[1][Attention]{
+  breakable,colback=GuideOrange!7,colframe=GuideOrange,title=\textbf{#1}}
+\newtcolorbox{failurebox}[1][Diagnostic]{
+  breakable,colback=GuideRed!5,colframe=GuideRed,title=\textbf{#1}}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{28mm}
+  {\Huge\bfseries\color{GuideBlue}Implémentation physique avec Innovus\par}
+  \vspace{7mm}
+  {\LARGE De la netlist placée au routage vérifié\par}
+  \vfill
+  {\Large Karim Sabra\par}
+  \vspace{4mm}
+  {Guide autonome compatible Overleaf\par}
+  {\today\par}
+\end{titlepage}
+
+\chapter*{Mode d'emploi Overleaf}
+\addcontentsline{toc}{chapter}{Mode d'emploi Overleaf}
+
+Ce document ne dépend d'aucun autre fichier LaTeX. Dans Overleaf, créer un
+projet vide, téléverser uniquement \texttt{pnr.tex}, le sélectionner comme
+document principal et choisir le compilateur pdfLaTeX.
+
+\begin{warningbox}[Portée]
+Les noms de couches, sites, pins d'alimentation, cellules et options physiques
+dépendent du PDK. Les exemples illustrent la méthode; ils doivent être adaptés
+aux fichiers autorisés du laboratoire. Une commande Innovus réussie n'est pas
+une preuve de fermeture physique.
+\end{warningbox}
+
+\tableofcontents
+
+\chapter{But et chaîne d'implémentation}
+
+\section{Entrées nécessaires}
+
+\begin{longtable}{p{0.23\textwidth}p{0.30\textwidth}p{0.37\textwidth}}
+\toprule
+Entrée & Exemple & Rôle \\
+\midrule
+Netlist Genus & \texttt{full\_adder\_comb.mapped.v} & logique mappée \\
+Contraintes & \texttt{mapped.sdc} & intention de timing \\
+Technology LEF & \texttt{technology.lef} & couches et règles abstraites \\
+Standard-cell LEF & \texttt{stdcells.lef} & géométrie et pins des cellules \\
+Liberty & BC, TC, WC & arcs de timing et puissance \\
+QRC technology & un fichier par corner RC & extraction des interconnexions \\
+Stream map & \texttt{stream.map} & correspondance couches vers GDS \\
+GDS des cellules & \texttt{stdcells.gds} & géométrie de référence \\
+\bottomrule
+\end{longtable}
+
+\section{Étapes}
+
+\begin{enumerate}
+  \item préflight des entrées et de la cohérence logique/physique;
+  \item import de la netlist, des LEF, du MMMC et du SDC;
+  \item floorplan, rows, pins et réseau d'alimentation;
+  \item placement et optimisation pré-CTS;
+  \item CTS pour un design séquentiel;
+  \item routage global/détaillé et optimisation post-route;
+  \item extraction RC, timing, connectivité et DRC;
+  \item export des résultats qualifiés.
+\end{enumerate}
+
+\begin{keybox}
+Chaque étape possède son propre gate. Par exemple, placement légal, CTS,
+routage, timing, connectivité signal, connectivité spéciale et DRC doivent
+rester des résultats distincts.
+\end{keybox}
+
+\chapter{Préflight avant Innovus}
+
+\section{Contrôles minimaux}
+
+Avant d'ouvrir Innovus, vérifier :
+
+\begin{itemize}
+  \item la présence et la taille non nulle de la netlist et du SDC Genus;
+  \item le nom exact du top dans la netlist;
+  \item l'absence de modules non résolus;
+  \item la présence des macros utilisées dans les LEF;
+  \item la compatibilité des noms de cellules entre netlist, Liberty et LEF;
+  \item le site de placement et les noms des pins PG des cellules;
+  \item les noms des réseaux globaux, par exemple \texttt{VDD} et \texttt{VSS};
+  \item la cohérence entre les corners Genus et Innovus.
+\end{itemize}
+
+\section{Variables de laboratoire}
+
+Les chemins privés peuvent être fournis par l'environnement :
+
+\begin{lstlisting}[style=guidecode,language=bash]
+export TECH_LEF=/chemin/autorise/technology.lef
+export STDCELL_LEF=/chemin/autorise/stdcells.lef
+export LIB_TC=/chemin/autorise/stdcells_tc.lib
+export QRC_TC=/chemin/autorise/qrc_tc.tch
+export STDCELL_SITE=core_site
+export POWER_NET=VDD
+export GROUND_NET=VSS
+export STDCELL_POWER_PIN=vddi
+export STDCELL_GROUND_PIN=gndi
+\end{lstlisting}
+
+Ne pas supposer que \texttt{VDD}, \texttt{VSS}, \texttt{vddi} ou
+\texttt{gndi} sont universels. Les vérifier dans le LEF et dans la méthode du
+laboratoire.
+
+\chapter{Flow minimal pour le full adder}
+
+\section{Commande directe}
+
+\begin{lstlisting}[style=guidecode,language=bash]
+export PNR_NETLIST=/chemin/full_adder_comb.mapped.v
+export PNR_SDC=/chemin/full_adder_comb.mapped.sdc
+export PNR_RUN_DIR=/tmp/digi_tuto_runs/innovus/full_adder_comb/run_01
+innovus -no_gui -files innovus_minimal.tcl
+\end{lstlisting}
+
+\section{Script Tcl minimal}
+
+Le script suivant montre import, floorplan, placement, routage et export. Il
+utilise une seule vue typique pour rester lisible.
+
+\begin{lstlisting}[style=guidecode,language=TclGuide,
+caption={innovus\_minimal.tcl}]
+proc require_env {name} {
+    if {![info exists ::env($name)] ||
+        [string trim $::env($name)] eq ""} {
+        error "variable obligatoire absente: $name"
+    }
+    return $::env($name)
+}
+
+set TOP full_adder_comb
+set RUN_DIR [file normalize [require_env PNR_RUN_DIR]]
+set REPORTS [file join $RUN_DIR reports]
+set OUTPUTS [file join $RUN_DIR outputs]
+set GENERATED [file join $RUN_DIR generated]
+set CHECKPOINTS [file join $RUN_DIR checkpoints]
+foreach dir [list $REPORTS $OUTPUTS $GENERATED $CHECKPOINTS] {
+    file mkdir $dir
+}
+
+# Création locale de la vue TC.
+set MMMC [file join $GENERATED basic_tc.mmmc.tcl]
+set fh [open $MMMC w]
+puts $fh [list create_constraint_mode -name FUNC \
+    -sdc_files [list [require_env PNR_SDC]]]
+puts $fh [list create_library_set -name LIBSET_TC \
+    -timing [list [require_env LIB_TC]]]
+puts $fh [list create_rc_corner -name RC_TC \
+    -temperature 25 \
+    -qx_tech_file [require_env QRC_TC]]
+puts $fh [list create_delay_corner -name CORNER_TC \
+    -library_set LIBSET_TC -rc_corner RC_TC]
+puts $fh [list create_analysis_view -name VIEW_TC \
+    -constraint_mode FUNC -delay_corner CORNER_TC]
+puts $fh [list set_analysis_view \
+    -setup [list VIEW_TC] -hold [list VIEW_TC]]
+close $fh
+
+global init_top_cell init_verilog init_lef_file init_mmmc_file
+global init_pwr_net init_gnd_net
+set init_top_cell $TOP
+set init_verilog [require_env PNR_NETLIST]
+set init_lef_file [list \
+    [require_env TECH_LEF] \
+    [require_env STDCELL_LEF]]
+set init_mmmc_file $MMMC
+set init_pwr_net [require_env POWER_NET]
+set init_gnd_net [require_env GROUND_NET]
+
+init_design
+
+globalNetConnect $init_pwr_net -type pgpin \
+    -pin [require_env STDCELL_POWER_PIN] -inst * -verbose
+globalNetConnect $init_gnd_net -type pgpin \
+    -pin [require_env STDCELL_GROUND_PIN] -inst * -verbose
+applyGlobalNets
+
+redirect -file [file join $REPORTS check_design_import.rpt] {
+    checkDesign -all
+}
+
+floorPlan -site [require_env STDCELL_SITE] \
+    -r 1.0 0.60 20.0 20.0 20.0 20.0
+defOut -floorplan [file join $OUTPUTS ${TOP}.floorplan.def]
+
+placeDesign
+redirect -file [file join $REPORTS check_place.rpt] {
+    checkPlace
+}
+
+# Adapter les couches à la technologie réelle.
+setDesignMode -bottomRoutingLayer MET1 -topRoutingLayer MET3
+routeDesign -placementCheck
+saveDesign [file join $CHECKPOINTS basic_routed.enc]
+
+redirect -file [file join $REPORTS connectivity_regular.rpt] {
+    verifyConnectivity -type regular -error 1000 -warning 1000
+}
+redirect -file [file join $REPORTS drc.rpt] {
+    verify_drc
+}
+
+set DEF_OUT [file join $OUTPUTS ${TOP}.routed.def]
+set VERILOG_OUT [file join $OUTPUTS ${TOP}.routed.v]
+defOut $DEF_OUT
+saveNetlist $VERILOG_OUT
+
+foreach path [list $DEF_OUT $VERILOG_OUT] {
+    if {![file exists $path] || [file size $path] == 0} {
+        error "sortie absente ou vide: $path"
+    }
+}
+
+puts "DIGI_PNR_STATUS: BASIC_FLOW_COMPLETED"
+puts "SIGNOFF_STATUS: NOT_ACHIEVED"
+exit 0
+\end{lstlisting}
+
+\section{Ce que ce flow prouve}
+
+Il prouve que les données peuvent être importées et qu'un premier placement et
+routage sont exécutables. Il ne prouve pas encore :
+
+\begin{itemize}
+  \item un réseau d'alimentation complet;
+  \item le CTS d'un bloc séquentiel;
+  \item la fermeture de tous les corners;
+  \item zéro violation DRC ou connectivité;
+  \item une exportation GDS qualifiée.
+\end{itemize}
+
+\chapter{Floorplan et réseau d'alimentation}
+
+\section{Dimensionner le core}
+
+Si l'aire totale des cellules est $A_{cells}$ et l'utilisation visée $U$ :
+\[
+  A_{core} \geq \frac{A_{cells}}{U}.
+\]
+Une utilisation de \(0.60\) signifie \(60\,\%\) de cellules et environ
+\(40\,\%\) de marge brute pour le routage, les buffers, les fillers et les
+optimisations. Cette marge n'est pas une garantie de routabilité.
+
+Le floorplan doit respecter le site, la grille, les marges de core, les
+dimensions minimales et l'accès aux pins.
+
+\section{Pins d'interface}
+
+Un placement de pins utile doit :
+
+\begin{itemize}
+  \item suivre la connectivité attendue au niveau supérieur;
+  \item utiliser une couche et une direction autorisées;
+  \item respecter l'espacement et l'accès routable;
+  \item garder clock, reset et bus clairement identifiables;
+  \item être contrôlé après floorplan et après routage.
+\end{itemize}
+
+\section{PG simple}
+
+\begin{lstlisting}[style=guidecode,language=TclGuide]
+globalNetConnect VDD -type pgpin \
+    -pin vddi -inst * -verbose
+globalNetConnect VSS -type pgpin \
+    -pin gndi -inst * -verbose
+applyGlobalNets
+
+# Valeurs et couches à remplacer par celles du laboratoire.
+addRing -nets {VDD VSS} \
+    -type core_rings \
+    -layer {top MET3 bottom MET3 left MET2 right MET2} \
+    -width 2.0 -spacing 1.0 -offset 1.0
+
+sroute -connect {corePin blockPin padPin padRing floatingStripe} \
+    -nets {VDD VSS}
+
+redirect -file reports/connectivity_special.rpt {
+    verifyConnectivity -type special -error 1000 -warning 1000
+}
+\end{lstlisting}
+
+\noindent\textbf{\color{GuideOrange}Contrôle PG.}
+La présence visuelle d'un ring ou la réussite de \texttt{sroute} ne suffit
+pas : lire le rapport de connectivité spéciale et vérifier séparément les nets
+d'alimentation et de masse.
+
+\chapter{Placement et optimisation}
+
+\section{Placement}
+
+\begin{lstlisting}[style=guidecode,language=TclGuide]
+setPlaceMode -place_global_cong_effort high
+placeDesign
+
+redirect -file reports/check_place.rpt {
+    checkPlace
+}
+redirect -file reports/timing_pre_cts.rpt {
+    timeDesign -preCTS
+}
+\end{lstlisting}
+
+Le rapport de placement doit être lu pour les overlaps, cellules hors rows,
+sites invalides, orientations et densité locale. Le timing pré-CTS utilise un
+modèle de clock idéal; il doit être identifié comme tel.
+
+\section{Optimisation pré-CTS}
+
+\begin{lstlisting}[style=guidecode,language=TclGuide]
+optDesign -preCTS
+redirect -file reports/timing_pre_cts_optimized.rpt {
+    timeDesign -preCTS
+}
+\end{lstlisting}
+
+Comparer avant/après : WNS, TNS, nombre de violations, aire, congestion et
+design rules. Une amélioration du WNS qui crée une congestion sévère n'est pas
+une fermeture.
+
+\chapter{CTS pour un design séquentiel}
+
+Le full adder combinatoire n'a pas de clock et saute cette étape. Pour
+l'additionneur pipeliné :
+
+\begin{lstlisting}[style=guidecode,language=TclGuide]
+set_ccopt_property buffer_cells \
+    {CLKBUF_X2 CLKBUF_X4 CLKBUF_X8}
+set_ccopt_property inverter_cells \
+    {CLKINV_X2 CLKINV_X4}
+
+create_ccopt_clock_tree_spec \
+    -file generated/ccopt.spec
+source generated/ccopt.spec
+ccopt_design
+
+redirect -file reports/clock_tree.rpt {
+    report_ccopt_clock_trees
+}
+redirect -file reports/timing_post_cts.rpt {
+    timeDesign -postCTS
+}
+\end{lstlisting}
+
+Les noms de cellules CTS doivent être validés dans la bibliothèque. Examiner
+latence, skew, transitions, sinks non connectés, clock gating et timing setup
+et hold. L'optimisation post-CTS s'exécute après ces contrôles :
+
+\begin{lstlisting}[style=guidecode,language=TclGuide]
+optDesign -postCTS
+optDesign -postCTS -hold
+\end{lstlisting}
+
+\chapter{Routage et vérifications}
+
+\section{Couches et routage}
+
+\begin{lstlisting}[style=guidecode,language=TclGuide]
+# Limites à adapter au stack métallique du PDK.
+setDesignMode -bottomRoutingLayer MET1 -topRoutingLayer MET3
+
+routeDesign
+optDesign -postRoute
+optDesign -postRoute -hold
+saveDesign checkpoints/post_route.enc
+\end{lstlisting}
+
+Une limite de couche trop basse peut créer congestion et détours; une limite
+trop haute peut violer le contrat d'intégration du bloc. Le choix doit être
+écrit dans la méthodologie de handoff.
+
+\section{Contrôles physiques séparés}
+
+\begin{lstlisting}[style=guidecode,language=TclGuide]
+redirect -file reports/connectivity_regular.rpt {
+    verifyConnectivity -type regular -error 1000 -warning 1000
+}
+redirect -file reports/connectivity_special.rpt {
+    verifyConnectivity -type special -error 1000 -warning 1000
+}
+redirect -file reports/drc.rpt {
+    verify_drc
+}
+redirect -file reports/antenna.rpt {
+    verifyProcessAntenna
+}
+\end{lstlisting}
+
+\begin{longtable}{p{0.26\textwidth}p{0.64\textwidth}}
+\toprule
+Gate & Question \\
+\midrule
+Connectivité regular & Tous les signaux ont-ils un chemin électrique complet,
+sans open ni short? \\
+Connectivité special & VDD et VSS atteignent-ils correctement rings, rails et
+pins PG? \\
+DRC & Les géométries respectent-elles les règles vérifiées par Innovus? \\
+Antenne & Les ratios d'antenne sont-ils acceptables ou réparés? \\
+Timing & Setup et hold sont-ils fermés dans chaque vue requise? \\
+\bottomrule
+\end{longtable}
+
+\section{Extraction et timing post-route}
+
+\begin{lstlisting}[style=guidecode,language=TclGuide]
+extractRC
+
+redirect -file reports/timing_post_route_setup.rpt {
+    timeDesign -postRoute
+}
+redirect -file reports/timing_post_route_hold.rpt {
+    timeDesign -postRoute -hold
+}
+
+rcOut -spef outputs/design.post_route.spef
+\end{lstlisting}
+
+Le timing post-route doit utiliser les vues et fichiers QRC attendus. Vérifier
+les clocks propagées, les chemins setup/hold, les violations électriques, les
+chemins non contraints et la cohérence des unités.
+
+\chapter{Wrapper de lancement}
+
+Ce wrapper effectue un préflight simple, crée un dossier unique et garde le
+code retour Innovus.
+
+\begin{lstlisting}[style=guidecode,language=bash,
+caption={run\_innovus.sh}]
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+INNOVUS_BIN=${INNOVUS_BIN:-innovus}
+RUN_ROOT=${RUN_ROOT:-/tmp/digi_tuto_runs}
+RUN_ID=${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}
+export PNR_RUN_DIR="$RUN_ROOT/innovus/full_adder_comb/$RUN_ID"
+
+required_vars=(
+  PNR_NETLIST PNR_SDC TECH_LEF STDCELL_LEF
+  LIB_TC QRC_TC STDCELL_SITE POWER_NET GROUND_NET
+  STDCELL_POWER_PIN STDCELL_GROUND_PIN
+)
+for name in "${required_vars[@]}"; do
+  [[ -n ${!name:-} ]] || {
+    echo "ERREUR: variable absente: $name" >&2
+    exit 2
+  }
+done
+
+for path in \
+  "$PNR_NETLIST" "$PNR_SDC" "$TECH_LEF" \
+  "$STDCELL_LEF" "$LIB_TC" "$QRC_TC" \
+  innovus_minimal.tcl; do
+  [[ -s "$path" ]] || {
+    echo "ERREUR: fichier absent ou vide: $path" >&2
+    exit 2
+  }
+done
+
+command -v "$INNOVUS_BIN" >/dev/null 2>&1 || {
+  echo "ERREUR: Innovus introuvable" >&2
+  exit 127
+}
+
+[[ ! -e "$PNR_RUN_DIR" ]] || {
+  echo "ERREUR: dossier déjà présent: $PNR_RUN_DIR" >&2
+  exit 2
+}
+mkdir -p "$PNR_RUN_DIR/logs"
+
+set +e
+"$INNOVUS_BIN" -no_gui -files innovus_minimal.tcl \
+  -log "$PNR_RUN_DIR/logs/innovus.log"
+RC=$?
+set -e
+
+(( RC == 0 )) || {
+  echo "RESULTAT: FAIL (innovus=$RC)" >&2
+  exit "$RC"
+}
+
+for path in \
+  "$PNR_RUN_DIR/outputs/full_adder_comb.routed.def" \
+  "$PNR_RUN_DIR/outputs/full_adder_comb.routed.v" \
+  "$PNR_RUN_DIR/reports/drc.rpt" \
+  "$PNR_RUN_DIR/reports/connectivity_regular.rpt"; do
+  [[ -s "$path" ]] || {
+    echo "RESULTAT: FAIL (sortie absente: $path)" >&2
+    exit 3
+  }
+done
+
+echo "RESULTAT: FLOW_EXECUTE"
+echo "Lire tous les rapports avant de qualifier le résultat"
+\end{lstlisting}
+
+\chapter{Méthodologie avancée MMMC}
+
+\section{Définition des vues}
+
+\begin{lstlisting}[style=guidecode,language=TclGuide]
+create_constraint_mode -name FUNC -sdc_files [list $PNR_SDC]
+
+create_library_set -name LIB_BC -timing [list $LIBERTY_BC]
+create_library_set -name LIB_TC -timing [list $LIBERTY_TC]
+create_library_set -name LIB_WC -timing [list $LIBERTY_WC]
+
+create_rc_corner -name RC_BC -qx_tech_file $QRC_BC
+create_rc_corner -name RC_TC -qx_tech_file $QRC_TC
+create_rc_corner -name RC_WC -qx_tech_file $QRC_WC
+
+create_delay_corner -name DC_BC \
+    -library_set LIB_BC -rc_corner RC_BC
+create_delay_corner -name DC_TC \
+    -library_set LIB_TC -rc_corner RC_TC
+create_delay_corner -name DC_WC \
+    -library_set LIB_WC -rc_corner RC_WC
+
+create_analysis_view -name VIEW_BC \
+    -constraint_mode FUNC -delay_corner DC_BC
+create_analysis_view -name VIEW_TC \
+    -constraint_mode FUNC -delay_corner DC_TC
+create_analysis_view -name VIEW_WC \
+    -constraint_mode FUNC -delay_corner DC_WC
+
+set_analysis_view \
+    -setup [list VIEW_TC VIEW_WC] \
+    -hold  [list VIEW_TC VIEW_BC]
+\end{lstlisting}
+
+Le PDK doit définir températures, tension, modèles RC et association correcte
+des vues. Vérifier dans Innovus les vues actives avant chaque rapport.
+
+\section{Organisation en stages}
+
+Un flow réutilisable sépare les fichiers Tcl :
+
+\begin{enumerate}
+  \item import et validation de la technologie;
+  \item floorplan, pins et PG;
+  \item placement, optimisation et CTS conditionnel;
+  \item routage, extraction, vérifications et exports.
+\end{enumerate}
+
+Chaque stage doit :
+
+\begin{itemize}
+  \item retourner une erreur explicite en cas d'échec;
+  \item produire ses propres rapports;
+  \item sauvegarder un checkpoint utile;
+  \item ne marquer PASS qu'après vérification de ses sorties;
+  \item conserver les gates non atteints comme tels.
+\end{itemize}
+
+\chapter{Exports et niveau de confiance}
+
+\section{Exports}
+
+\begin{lstlisting}[style=guidecode,language=TclGuide]
+defOut outputs/design.routed.def
+saveNetlist outputs/design.routed.v
+write_sdc -view VIEW_WC > outputs/design.routed.sdc
+rcOut -spef outputs/design.post_route.spef
+saveDesign checkpoints/final.enc
+
+# Uniquement lorsque stream map et GDS de référence sont validés.
+streamOut outputs/design.gds \
+    -mapFile $STREAM_MAP \
+    -merge $STDCELL_GDS \
+    -units 1000 \
+    -mode ALL
+\end{lstlisting}
+
+Un GDS créé est un candidat d'export, pas une preuve de signoff. Les checks
+foundry et la comparaison layout-vers-source appartiennent à une qualification
+séparée avec les outils et decks autorisés.
+
+\section{Matrice de statut}
+
+\begin{longtable}{p{0.26\textwidth}p{0.23\textwidth}p{0.41\textwidth}}
+\toprule
+Gate & Valeur & Preuve attendue \\
+\midrule
+Préflight & PASS/FAIL & fichiers et variables contrôlés \\
+Import & PASS/FAIL & \texttt{checkDesign}, cellules et vues cohérentes \\
+Floorplan & PASS/FAIL & dimensions, rows, pins et PG examinés \\
+Placement & PASS/FAIL & \texttt{checkPlace} sans erreur bloquante \\
+CTS & PASS/FAIL/NON APPLICABLE & arbre et sinks qualifiés \\
+Routage & PASS/FAIL & routage terminé et checkpoint lisible \\
+Connectivité signal & PASS/FAIL & rapport regular explicite \\
+Connectivité PG & PASS/FAIL & rapport special explicite \\
+DRC Innovus & PASS/FAIL & total de violations connu \\
+Antenne & PASS/FAIL/NON EXÉCUTÉ & rapport et total connus \\
+Timing & PASS/FAIL & setup et hold par vue \\
+Export & PASS/FAIL & fichiers attendus non vides \\
+Signoff & NON ATTEINT/ATTEINT & contrôles externes requis terminés \\
+\bottomrule
+\end{longtable}
+
+\chapter{Diagnostic}
+
+\begin{longtable}{p{0.22\textwidth}p{0.31\textwidth}p{0.37\textwidth}}
+\toprule
+Symptôme & Cause probable & Première action \\
+\midrule
+Cellule introuvable & désaccord netlist/LEF/Liberty &
+Comparer le nom exact dans les trois entrées. \\
+Site invalide & mauvais \texttt{STDCELL\_SITE} &
+Lire le nom du site dans le LEF. \\
+Pins PG non connectées & mauvais noms de pins ou nets &
+Contrôler LEF, \texttt{globalNetConnect} et rapport special. \\
+Placement illégal & rows, orientation ou dimensions &
+Lire la première erreur de \texttt{checkPlace}. \\
+CTS sans sinks & clock SDC absente ou mauvais objet &
+Vérifier la clock et les registres après import. \\
+Routage impossible & congestion ou limites de couches &
+Lire la congestion et le premier type de violation. \\
+Opens signal & accès pin ou route incomplète &
+Localiser le premier net du rapport regular. \\
+Shorts PG & ring, stripe ou via incompatible &
+Analyser le premier marker et la connectivité special. \\
+Timing post-route négatif & RC ou chemin critique réel &
+Lire le chemin complet et la vue avant optimisation. \\
+GDS vide ou incomplet & map ou merge incorrect &
+Vérifier fichiers d'entrée, taille et messages de streamout. \\
+\bottomrule
+\end{longtable}
+
+\begin{failurebox}[Ordre de debug]
+Corriger d'abord l'import, puis le floorplan/PG, le placement, le CTS, le
+routage, la connectivité et enfin le timing post-route. Une optimisation ne
+doit pas masquer un problème d'entrée ou de topologie.
+\end{failurebox}
+
+\appendix
+\chapter{Checklist finale}
+
+\begin{enumerate}
+  \item Netlist, SDC, LEF, Liberty et QRC sont présents et cohérents.
+  \item Le top, le site, les nets PG et les pins PG sont vérifiés.
+  \item Les vues setup/hold actives correspondent à la méthode du PDK.
+  \item Floorplan, rows et pins sont contrôlés.
+  \item La connectivité spéciale est vérifiée après création du PG.
+  \item Le placement est légal et la congestion examinée.
+  \item Le CTS est qualifié ou explicitement non applicable.
+  \item Routage, connectivité signal, connectivité PG, DRC et antenne ont des
+    statuts séparés.
+  \item Le timing post-route setup/hold est lu dans chaque vue requise.
+  \item DEF, netlist, SDC, SPEF, checkpoint et éventuel GDS sont non vides.
+  \item Aucun export n'est appelé « signoff » sans les preuves correspondantes.
+\end{enumerate}
+
+\end{document}
