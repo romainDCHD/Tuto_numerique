@@ -471,7 +471,7 @@ Une fois le RTL du full adder et de son testbench écrits (et qu'on a donc une d
 #codly(stroke: 1pt + red)
 ```bash
 xrun -64bit -timescale 1ns/1ps \
-   examples/01_full_adder_comb/rtl/full_adder.sv \
+   examples/01_full_adder_comb/rtl/full_adder_comb.sv \
    examples/01_full_adder_comb/tb/tb_full_adder_comb.sv \
    -top tb_full_adder_comb
 ```
@@ -487,7 +487,12 @@ xrun -64bit -timescale 1ns/1ps \
 - `-f` lit une filelist.
 - `-top` choisit le top élaboré.
 
-#TODO("print la sortie attendue")
+\
+On s'attend a voir dans la sortie:
+```sh
+xcelium> run
+TEST_PASS: full_adder_comb
+```
 
 #showybox(
   title: "Note :",
@@ -820,7 +825,26 @@ fi
 printf 'RESULTAT: PASS\n'
 ```
 
+Pour lancer le script : 
 
+#codly(stroke: 1pt + red)
+```bash
+bash scripts/run_sim.sh full_adder_comb 
+```
+#codly(stroke: 1pt + gray)
+
+
+#showybox(
+  title: [#text(weight: "bold", fill: black, [Attention : source $!=$ bash - 1/2] )],
+  frame: (
+    border-color: red,
+    title-color: red.lighten(30%),
+    body-color: red.lighten(95%),
+    footer-color: red.lighten(80%)
+  ),
+)[
+  Dans la logique les commande source et bash (ou ./) servent toutes à executer un processus mais la commande source est prévue pour mettre à jours des variables d'environnement (comme on en reparle plus loin). Pour cette raison, quand on execute un script il ne faut #rouge("jamais executer avec source") et toujours privilégier bash ou ./
+]
 
 // -------------------  SOUS - SECTION ------------------- 
 == Exemple 2 : Full adder pipeliné
@@ -893,4 +917,570 @@ Le scoreboard doit décaler la référence d'un cycle. Les stimuli sont de préf
 7. La GUI sert au diagnostic, pas au verdict.
 
 
+// ******************** SECTION ******************** 
+// *************************************************
+= Etape 2 : Synthèse logique avec Genus
+La deuxième étape de ce parcours est donc la synthèse. C'est à cette étape que le lein avec la technologie cible va s'effectuer. Cette étape est plus compliquées que la précédente car il faut pouvoir correctement faire le lien avec le PDK cible.
+
+*Ce que produit la concrêtement la synthèse*: Genus transforme un *RTL élaboré* en une *netlist composée de cellules de la bibliothèque cible*.
+Il optimise la logique sous les contraintes de :
+- Timing
+- Aire
+- Transition
+- Fanout
+- Charge
+
+\
+Ce chapitre se décomposera en 4 niveux de progression: 
+
+
+#figure(
+[#table(
+  columns: (auto, auto),
+  inset: 5pt,
+  align: center,
+  fill: (x, y) => if y == 0 {silver},
+  table.header(
+    [*Niveau*], [*Objectif*],
+  ),
+  [1], [Lire le full adder, l'élaborer et comprendre le SDC],
+  [2], [Exécuter les trois phases : `syn_generic`, `syn_map` et `syn_opt`],
+  [3], [Générer les rapports et les deux fichiers nécessaires à Innovus],
+  [4], [Ajouter un wrapper, le contrôle des entrées, les vues MMMC et les données physiques],
+)],
+caption: [Méthode en quatre niveaux]
+)<tab_methodologie>
+
+== Entrées et sorties
+Dans un premier temps il est primordial de comprendre ce dont on a besoin pour lancer la synthèse et quels sont les fichiers en sortie de synthèse
+#TODO("A faire aussi pour la simu")
+
+#figure(
+[#table(
+  columns: (auto, auto, auto),
+  inset: 5pt,
+  align: center,
+  fill: (x, y) => if y == 0 {silver}
+  else if y < 5 {green.lighten(80%)}
+  else if y >= 5 {orange.lighten(80%)},
+  table.header(
+    [*Élément*], [*Exemple*], [*Rôle*],
+  ),
+  [RTL], [`full_adder_comb.sv`], [Description logique synthétisable],
+  [Filelist], [`rtl.f`], [Ordre et chemins des sources],
+  [Contraintes], [`constraints.sdc`], [Clocks, délais d'E/S et exceptions],
+  [Liberty], [`stdcells_tc.lib`], [Fonctions, arcs, délais et puissance],
+  [Netlist mappée], [`full_adder_comb.mapped.v`], [Cellules choisies],
+  [SDC exporté], [`mapped.sdc`], [Contraintes transmises],
+  [Rapports], [`report_timing.rpt`, `report_area.rpt`, `report_qor.rpt`], [Preuves à examiner],
+)],
+caption: [Éléments de la synthèse logique (#text(fill: green, [*entrées*]),  #text(fill: orange, [*sorties*]))]
+)<tab_elements_synthese>
+
+
+\
+On ne va pas revenir sur ce que sont les fichiers `.sv` et `.f` mais voici une rapide description des autres entrées :
+
+=== Fichier SDC (Synopsys Design Constraint)
+Le fichier qui va définir les contraintes de timing à respecter pour notre design. 
+Voici par exemple le fichier de contraintes de l'exemple 02 -  _adder_pipeline_ :
+
+#codly(footer: [*constraints.sdc*], breakable: true, )
+```tcl
+set PERIOD_NS 2.000
+create_clock -name VCLK -period $PERIOD_NS
+
+set_input_delay  0.200 -clock VCLK [get_ports {a_i b_i cin_i}]
+set_output_delay 0.200 -clock VCLK [get_ports {sum_o cout_o}]
+
+set_input_transition 0.050 [get_ports {a_i b_i cin_i}]
+set_load 0.010 [get_ports {sum_o cout_o}]
+```
+#showybox(
+  title: [*À retenir* :],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  Le budget disponible pour un chemin entrée-vers-sortie est approximativement : [*période - délai d'entrée - délai de sortie - marges internes*].
+  Les valeurs doivent correspondre au *contrat réel du bloc*, pas à un nombre choisi uniquement pour obtenir un rapport positif...
+]
+
+=== Fichiers .lib (liberty)
+Ce sont les fichiers du PDK qui définissent les caractéristiques des cellules de la technologie cible. Il existe 
+- tc ou tt pour typical
+- wc ou ss pour lent 
+- bc ou ff pour rapide 
+#TODO("A améliorer")
+
+== Niveau 1 : Commande et Tcl minimal
+#TODO("A unifier ave la partie 1")
+Contrairement à la simulation, la synthèse nécessite un peu plus de scripts. En effet, il y a davantage d'étapes : le lien avec le PDK, les différents fichiers `.f`, `.sdc` etc. et tout ceci nésessite des scripts pour être fait correctement. 
+
+Le language de script qui va nous permettre d'échanger avec genus est le `.tcl`. Le soucis c'est que le tcl ne peut pas charger des variables d'envirronnement globale. Afin de corretement faire le lien entre tous les fichiers d'entrée on défini un fichier d'environnement (.env) qui va nous permettre de dire ou est ou d'un coup.
+
+Première étape donc : sourcer le fichier :
+
+#codly(stroke: 1pt + red)
+```sh
+source fichier.env
+```
+#codly(stroke: 1pt + gray)
+
+#showybox(
+  title: [#text(weight: "bold", fill: black, [Attention : source $!=$ bash - 2/2] )],
+  frame: (
+    border-color: red,
+    title-color: red.lighten(30%),
+    body-color: red.lighten(95%),
+    footer-color: red.lighten(80%)
+  ),
+)[
+  Si on fait `export PATH_CUSTOM=/le/chemin` dans un programme shell et qu'on l'exectute avec la commande *bash* la variable PATH_CUSTOM sera détruite à la fin de l'execution du programme. Si on veut pouvoir s'en servir par la suite il faut donc que ça reste et pour cela on utilise la commande *source*
+]
+
+#showybox(
+  title: [*Note* :],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  Il y a d'autres façon de faire que cette architecture
+]
+
+```bash
+export LIBERTY_TC=/chemin/autorise/stdcells_tc.lib
+genus -files genus_minimal.tcl
+```
+#TODO("Dire .sh et .env c'est pas pareil")
+=== Script complet minimal
+
+*Fichier* : `genus_minimal.tcl`
+
+```tcl
+proc require_env {name} {
+    if {![info exists ::env($name)] || [string trim $::env($name)] eq ""} {
+        error "variable obligatoire absente: $name"
+    }
+    return $::env($name)
+}
+
+set TOP full_adder_comb
+set ROOT [file normalize .]
+set FILELIST [file join $ROOT syn rtl.f]
+set SDC [file join $ROOT syn constraints.sdc]
+set REPORTS [file join $ROOT reports]
+set OUTPUTS [file join $ROOT outputs]
+file mkdir $REPORTS
+file mkdir $OUTPUTS
+
+set LIB_TC [file normalize [require_env LIBERTY_TC]]
+if {![file exists $LIB_TC] || [file size $LIB_TC] == 0} {
+    error "Liberty absent ou vide: $LIB_TC"
+}
+
+set_db hdl_language sv
+set_db library [list $LIB_TC]
+set_db init_hdl_search_path [list $ROOT]
+cd $ROOT
+
+read_hdl -sv -f $FILELIST
+elaborate $TOP
+read_sdc $SDC
+
+redirect -file [file join $REPORTS check_design.rpt] {
+    check_design -all
+}
+redirect -file [file join $REPORTS check_timing_intent.rpt] {
+    check_timing_intent -verbose
+}
+
+syn_generic
+syn_map
+syn_opt
+
+redirect -file [file join $REPORTS report_timing.rpt] {
+    report_timing -max_paths 20
+}
+redirect -file [file join $REPORTS report_area.rpt] {
+    report_area
+}
+redirect -file [file join $REPORTS report_qor.rpt] {
+    report_qor
+}
+
+set NETLIST [file join $OUTPUTS ${TOP}.mapped.v]
+set SDC_OUT [file join $OUTPUTS ${TOP}.mapped.sdc]
+write_hdl > $NETLIST
+write_sdc > $SDC_OUT
+
+foreach path [list $NETLIST $SDC_OUT] {
+    if {![file exists $path] || [file size $path] == 0} {
+        error "sortie absente ou vide: $path"
+    }
+}
+
+puts "GENUS_TUTORIAL_STATUS: BASIC_FLOW_COMPLETED"
+exit 0
+
+```
+
+=== Lecture étape par étape
+
+1. *`read_hdl`* : compile les sources
+2. *`elaborate`* : construit la hiérarchie et résout les paramètres
+3. *`read_sdc`* : applique l'intention de timing
+4. *Checks* : détectent les références non résolues et contraintes incomplètes *avant l'optimisation*
+5. *`syn_generic`* : optimise une représentation indépendante de la technologie
+6. *`syn_map`* : choisit les cellules Liberty
+7. *`syn_opt`* : améliore le design mappé sous contraintes
+8. *Rapports* : qualifient le résultat
+9. *Exports* : alimentent Innovus
+
+---
+
+---
+
+== Comprendre les rapports
+
+=== Timing
+
+Pour un check de *setup* :
+```
+slack = t_requis - t_arrivee
+```
+
+- *Slack négatif* → violation
+- *WNS* (Worst Negative Slack) = pire slack
+- *TNS* (Total Negative Slack) = somme des slacks négatifs
+
+*À vérifier* :
+- Les clocks et les unités sont celles attendues
+- Aucun chemin important n'est non contraint
+- Les ports reçoivent bien délais, transitions et charges
+- Les exceptions ciblent les objets voulus
+- Les violations de transition, capacitance et fanout sont *séparées* des violations de timing
+
+> *⚠️ Verdict correct*
+> Le code retour de l'outil, l'élaboration, les contraintes, le timing, les design rules et les exports sont des *contrôles distincts*.
+> *Ne pas les résumer par un seul message « terminé »*.
+
+=== Aire et QoR
+
+- *Aire totale* : nombre de cellules + répartition combinatoire/séquentielle
+- *Cellules non mappées* : à vérifier
+- Une aire plus petite *n'est pas automatiquement meilleure* si elle dégrade le timing ou la robustesse électrique
+
+---
+
+---
+== Wrapper réutilisable
+
+*Fichier* : `run_genus.sh`
+
+```bash
+=!/usr/bin/env bash
+set -Eeuo pipefail
+
+GENUS_BIN=${GENUS_BIN:-genus}
+RUN_ROOT=${RUN_ROOT:-/tmp/digi_tuto_runs}
+RUN_ID=${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}
+RUN_DIR="$RUN_ROOT/genus/full_adder_comb/$RUN_ID"
+
+: "${LIBERTY_TC:?définir LIBERTY_TC}"
+for path in \
+  "$LIBERTY_TC" \
+  rtl/full_adder_comb.sv \
+  syn/rtl.f \
+  syn/constraints.sdc \
+  genus_minimal.tcl; do
+  [[ -s "$path" ]] || {
+    echo "ERREUR: fichier absent ou vide: $path" >&2
+    exit 2
+  }
+done
+
+command -v "$GENUS_BIN" >/dev/null 2>&1 || {
+  echo "ERREUR: Genus introuvable" >&2
+  exit 127
+}
+
+[[ ! -e "$RUN_DIR" ]] || {
+  echo "ERREUR: dossier déjà présent: $RUN_DIR" >&2
+  exit 2
+}
+mkdir -p "$RUN_DIR"
+
+set +e
+"$GENUS_BIN" -files genus_minimal.tcl \
+  -log "$RUN_DIR/genus.log" \
+  2>&1 | tee "$RUN_DIR/console.log"
+RC_GENUS=${PIPESTATUS[0]}
+RC_TEE=${PIPESTATUS[1]}
+set -e
+
+(( RC_GENUS == 0 && RC_TEE == 0 )) || {
+  echo "RESULTAT: FAIL (genus=$RC_GENUS tee=$RC_TEE)" >&2
+  exit 1
+}
+
+for path in \
+  outputs/full_adder_comb.mapped.v \
+  outputs/full_adder_comb.mapped.sdc \
+  reports/report_timing.rpt; do
+  [[ -s "$path" ]] || {
+    echo "RESULTAT: FAIL (sortie absente: $path)" >&2
+    exit 3
+  }
+done
+
+echo "RESULTAT: FLOW_EXECUTE"
+echo "Lire reports/report_timing.rpt avant le handoff"
+```
+
+> *À retenir*
+> Dans un flow de laboratoire, il est préférable de placer aussi les dossiers `reports` et `outputs` sous `RUN_DIR`.
+> Le script minimal les garde près du Tcl pour rester lisible.
+
+---
+
+---
+== Méthodologie avancée
+
+=== Passer du TC au MMMC
+
+Une analyse *MMMC* sépare :
+- Les *library sets* Liberty
+- Les *corners RC*
+- Les *delay corners* (associent timing et interconnexions)
+- Les *modes de contraintes*
+- Les *analysis views* pour setup et hold
+
+*Structure MMMC simplifiée* :
+
+```tcl
+create_library_set -name LIB_BC -timing [list $LIBERTY_BC]
+create_library_set -name LIB_TC -timing [list $LIBERTY_TC]
+create_library_set -name LIB_WC -timing [list $LIBERTY_WC]
+
+create_rc_corner -name RC_BC -qx_tech_file $QRC_BC
+create_rc_corner -name RC_TC -qx_tech_file $QRC_TC
+create_rc_corner -name RC_WC -qx_tech_file $QRC_WC
+
+create_delay_corner -name DC_BC \
+    -library_set LIB_BC -rc_corner RC_BC
+create_delay_corner -name DC_TC \
+    -library_set LIB_TC -rc_corner RC_TC
+create_delay_corner -name DC_WC \
+    -library_set LIB_WC -rc_corner RC_WC
+
+create_constraint_mode -name FUNC -sdc_files [list $SDC]
+
+create_analysis_view -name VIEW_BC \
+    -constraint_mode FUNC -delay_corner DC_BC
+create_analysis_view -name VIEW_TC \
+    -constraint_mode FUNC -delay_corner DC_TC
+create_analysis_view -name VIEW_WC \
+    -constraint_mode FUNC -delay_corner DC_WC
+
+set_analysis_view \
+    -setup [list VIEW_TC VIEW_WC] \
+    -hold  [list VIEW_TC VIEW_BC]
+```
+
+> *⚠️ Important*
+> Le choix exact des vues *setup* et *hold* appartient à la méthodologie du PDK.
+> *Ne pas déduire ce choix uniquement du nom « best » ou « worst »*.
+
+=== Données physiques
+
+Pour une synthèse *physical-aware* :
+
+```tcl
+read_mmmc flow_mmmc.tcl
+read_physical -lef [list $TECH_LEF $STDCELL_LEF]
+read_hdl -sv -f syn/rtl.f
+elaborate $TOP
+init_design
+```
+
+> Cette estimation améliore la corrélation avec Innovus, mais *ne remplace pas* :
+> - Placement
+> - CTS (Clock Tree Synthesis)
+> - Routage
+> - Extraction réelle
+
+=== Design séquentiel
+
+Pour un additionneur pipeliné, le SDC doit définir la *vraie clock* :
+
+```tcl
+create_clock -name CLK -period 2.000 [get_ports clk_i]
+set_clock_uncertainty 0.100 [get_clocks CLK]
+set_input_delay  0.200 -clock CLK \
+    [remove_from_collection [all_inputs] [get_ports clk_i]]
+set_output_delay 0.200 -clock CLK [all_outputs]
+set_false_path -from [get_ports rst_ni]
+```
+
+> *À vérifier* :
+> L'exception de reset doit correspondre à *l'architecture* et à la *politique du laboratoire*.
+> Vérifier les objets ciblés avec les rapports de contraintes.
+
+---
+
+---
+== Handoff vers Innovus
+
+Le *package minimal* contient :
+
+1. La *netlist mappée* (non vide)
+2. Le *SDC exporté* (non vide)
+3. Le *nom exact du top*
+4. Les *mêmes familles Liberty* utilisées par la configuration Innovus
+5. Les *rapports* de checks, timing et QoR
+6. Une *liste explicite* des violations ou hypothèses restantes
+
+> *❌ Diagnostic*
+> *Ne pas lancer Innovus* si :
+> - La netlist contient des *références non résolues*
+> - Le SDC n'a pas produit les *clocks et contraintes attendues*
+> - Le choix des *corners est inconnu*
+>
+> Un timing positif au *seul corner typique* reste un résultat *typique*, pas une preuve MMMC.
+
+---
+
+---
+== Diagnostic
+
+| Symptôme | Cause probable | Première action |
+|----------|----------------|-----------------|
+| Genus introuvable | Environnement Cadence non chargé | Vérifier `command -v genus` |
+| Module non résolu | Filelist ou ordre incorrect | Lire la première erreur de `read_hdl` |
+| Top inconnu | Mauvais nom d'élaboration | Comparer le module RTL et la variable `TOP` |
+| Clock absente | SDC non lu ou objet vide | Examiner `check_timing_intent` et les clocks |
+| Chemins non contraints | Contrat d'E/S incomplet | Ajouter les contraintes justifiées, sans masquer les chemins |
+| Cellules non mappées | Liberty incompatible ou incomplète | Vérifier la library active et le rapport de mapping |
+| WNS négatif | Chemin setup trop lent | Lire le premier chemin complet avant de changer l'effort |
+| Export vide | Étape interrompue ou mauvais chemin | Contrôler le code retour et la taille de chaque fichier |
+
+---
+---
+== Checklist finale
+
+- [ ] Toutes les sources de la filelist existent et le *top est explicite*
+- [ ] L'*élaboration* ne contient pas de référence non résolue
+- [ ] Les *unités Liberty et SDC* sont cohérentes
+- [ ] Les *clocks, délais d'E/S, transitions et charges* sont vérifiés
+- [ ] Les *chemins non contraints* et les *exceptions* sont examinés
+- [ ] Les rapports *timing, aire, QoR* et *design rules* sont non vides
+- [ ] La *netlist mappée* et le *SDC exporté* sont non vides
+- [ ] Les résultats *TC* et *MMMC* restent clairement distingués
+- [ ] Le package Innovus reprend le *top* et les *corners corrects*
+
+---
+*Fin du document*
+```
+
+---
+*Pour l'utiliser* :
+1. Copiez *tout le contenu ci-dessus* (y compris les ```markdown)
+2. Collez-le dans un fichier nommé `synthese.md`
+3. Enregistrez-le où vous voulez (Overleaf, VS Code, etc.)
+
+
+
+
+.env (Variables d'Environnement)
+Rôle :
+
+Centralise TOUTES les variables nécessaires au flow (chemins, noms de modules, etc.).
+---
+
+
+helpers.tcl (Fonctions Utilitaires)
+Rôle :
+
+Encapsule la logique commune (gestion des erreurs, logs, rapports).
+Évite la duplication de code (ex: tutorial_run_stage est utilisé plusieurs fois dans main.tcl).
+Fonctions Clés :
+
+
+| Fonction | Rôle | Utilisation dans main.tcl |
+| --- | --- | --- |
+| tutorial_require_env | Vérifie qu’une variable d’environnement existe. | set root [tutorial_require_env TUTORIAL_ROOT] |
+| tutorial_env_list | Parse une liste de chemins (ex: GENUS_LIBERTY_TC). | set_db library [tutorial_env_list GENUS_LIBERTY_TC] |
+| tutorial_run_stage | Exécute une étape avec gestion d’erreur + logging. | tutorial_run_stage read_rtl { `read_hdl -sv -f $filelist` } |
+| tutorial_record_stage | Enregistre l’état d’une étape dans GENUS_STAGE_STATUS. | Appelé par tutorial_run_stage. |
+| tutorial_report | Génère un rapport (ex: report_timing.rpt). | tutorial_report "reports/timing.rpt" { report_timing } |
+| tutorial_write_final_status | Écrit le statut final du flow. | tutorial_write_final_status PASS "Synthèse terminée" |
+
 #TODO("Une étape sans objet, comme le CTS du full adder, doit être marquée NOT_APPLICABLE.")
+
+
+
+
+
+
+
+// ===================== ANNEXES =====================
+#heading(numbering: none, outlined: true)[Annexes]
+
+// Définir une autre façon de numéroter pour les annexes
+#set heading(
+  numbering: (..nums) => {
+    return "A." + numbering("1 ", nums.pos().last())
+  },supplement: [Annexe], outlined: false
+)
+
+// ----------------- SOUS-SECTION ------------------ 
+== Nomenclature classique dans les PDK <ann-nomenclature>
+Il peut être trsè compliqué de se retrouver dans un PDK quand on a pas l'habitude des acronymes. Voici donc quelques indications générales qui peuvent s'avérer utile
+
+#figure(
+[#table(
+  columns: (auto, auto, auto),
+  inset: 5pt,
+  align: center,
+  fill: (x, y) => if y == 0 {silver},
+  table.header(
+    [*Partie du nom*], [*Signification*], [*Exemple techno tsmc65n*],
+  ),
+  [tc], [Timing Corner (fichiers pour la synthèse/PnR)], [tcbn65lp_200a],
+  [tef], [Timing Effective (variante pour l’analyse timing)], [tef65lp32x1s_i_200a],
+  [tp], [Timing Pessimistic (corner lent, pour le worst-case)], [tpan65lpnv2od3_200a],
+  [bn], [Bulk NMOS (type de transistor)], [tcbn65lp_200a],
+  [65lp], [65nm Low Power (mais peut correspondre à un kit 130nm pour des raisons de compatibilité)], [Tous tes dossiers],
+  [nv], [Non-Volatile (pour les mémoires)], [tpan65lpnv2od3_200a],
+  [esd], [ElectroStatic Discharge (protection contre les décharges)], [tef65lpesd_p_200a],
+  [200a / 140c / 141a], [Version du kit de design (200a = plus récent, 140c = plus ancien)], [Tous tes dossiers],
+  [_i_], [Input (fichiers pour les entrées)], [tef65lp32x1s_i_200a],
+  [32x1s], [Variante spécifique (ex: 32 bits, 1 supply voltage)], [tef65lp32x1s_i_200a],
+)],
+caption: [Signification des noms de fichiers]
+)<tab_noms_fichiers>
+
+Pour les modèles de modélisation dans les pdk on peut retrouver deux types : 
+
+#figure(
+[#table(
+  columns: (auto, auto, auto, auto, auto),
+  inset: 5pt,
+  align: center,
+  fill: (x, y) => if y == 0 {silver},
+  table.header(
+    [*Modèle*], [*Signification*], [*Type*], [*Précision*], [*Complexité*],
+  ),
+  [ECSM], [Effective Current Source Model], [Modèle basé sur les courants], [Très élevée], [Élevée],
+  [NLDM], [Non-Linear Delay Model], [Modèle basé sur les tables de lookup], [Élevée], [Modérée],
+)],
+caption: [Comparaison de deux modèles de parasites courants]
+)<tab_modeles>
+
