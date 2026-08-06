@@ -19,6 +19,11 @@
   text(fill: red, weight: "bold")[ #montexte]
 }
 
+// #let command(titre) ={
+//     let extension = [#titre].slice(start: ".")
+//     text([#extension])
+//   }
+
 // Configure codeblock
 #import "@preview/codly:1.3.0": *
 #import "@preview/codly-languages:0.1.1": *
@@ -136,7 +141,37 @@
 
   // Codeblock
   show: codly-init.with()
-  codly(stroke: 1pt + gray, fill: colors.code-bg, zebra-fill: colors.code-bg, footer-cell-args: (align: center, fill: silver))
+
+  show raw.where(lang: "bash"): it => {
+  // codly(stroke: 1pt + green, number-format: none, fill : green.lighten(95%), zebra-fill: green.lighten(95%))
+  codly(number-format: none)
+  it
+  codly(stroke: 1pt + gray, fill: colors.code-bg, zebra-fill: colors.code-bg, footer-cell-args: (align: center, fill: silver),  number-format: numbering.with("1 "))
+  }
+
+  show raw.where(lang: "sh"): it => {
+  codly(number-format: none)
+  it
+  codly(number-format: numbering.with("1 "))
+  }
+
+
+  codly(stroke: 1pt + gray, fill: colors.code-bg, zebra-fill: colors.code-bg, footer-cell-args: (align: center, fill: silver), breakable: true, number-format: numbering.with("1 "), 
+  languages: (
+    bash: (
+      name: [Commande bash], color: black, icon: [$->$ ]
+      ),
+    sh: (
+      name: [Bash output], color: colors.code-bg.darken(50%), icon: [$-> $]
+      ),
+    txt: (
+      name: [txt], color: black, icon: []
+      )
+  )
+  )
+  
+
+  
 
   // Annotations
   show: deixis-setup-notes

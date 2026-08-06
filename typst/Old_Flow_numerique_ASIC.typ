@@ -263,6 +263,24 @@ Tout au long du tutoriel, on considère que l'environnement Cadence est chargé 
 = Etape 1 : Simulation RTL du full adder au testbench réutilisable - outil Xcelium <sec-simu_rtl>
 // ----------------- SOUS-SECTION ------------------ 
 
+//  Pour exemple d'un code highlighté avec codly
+// 
+// #codly(highlights: (
+//   (line: 4, start: 2, end: none, fill: red),
+//   (line: 5, start: 13, end: 19, fill: green, tag: "(a)"),
+//   (line: 5, start: 26, fill: blue, tag: "(b)"),
+// ))
+// #codly(footer: [*11 e*]){
+// ```py
+// def fib(n):
+//   if n <= 1:
+//     return n
+//   else:
+//     return fib(n - 1) + fib(n - 2)
+// print(fib(25))
+// ```}
+
+
 
 
 Cette première étape du flow se décompose elle même en trois phases (cf. @fig-methodologie):
@@ -307,8 +325,7 @@ caption: [Entrées sorties de la phase de simulation (#text(fill: green, [*entr�
 )<tab_elements_simu>
 
 // -------------------  SOUS - SECTION ------------------- 
-==  Niveau 1 : Commande Xcelium minimale
-Dans ce niveau, nous nous intéressons au module full_adder_comb.
+==  Exemple 1 : Full adder combinatoire
 Module très simple et purement combinatoire (sans clock). La première étape consiste à savoir ce qu'on veut que le module fasse. Cette étape passe souvent par écrire une machine à état ou une table de vérité pour être au clair sur les fonction *précises* du module. 
 === Définition du contrat logique
 
@@ -413,21 +430,47 @@ endmodule
 
 // -------------------  SOUS - SECTION -------------------
 === Testbench du full adder comb
-De la même manière que un module, un testbench est aussi un module RTL qui comprend le module a tester ainsi que les entrée sorties commandées permettant de faire le test (exactement comme en analogique). Le rôle du testbench est également de faire ressortir des #rouge("marqueurs") pour vérifier le bon fonctionnement comportemental de note module / DUT. 
+De la même manière que un module, un testbench est aussi un module RTL qui comprend le module a tester ainsi que les entrée sorties commandées permettant de faire le test (exactement comme en analogique). Le rôle du testbench est également de faire ressortir des #rouge("marqueurs") pour vérifier le bon fonctionnement comportemental de note module / DUT. Ici, cela donne :
+#codly(footer: [*tb_full_adder_comb.sv*], breakable: true)
+```sv
+`timescale 1ns/1ps
 
-Voir @code-tb_full_adder_comb pour voir le code du testbench en question 
+module tb_full_adder_comb;
+    logic a_i, b_i, cin_i;
+    logic sum_o, cout_o;
 
-#showybox(
-  title: "Note : retrouver les codes sources",
-  frame: (
-    border-color: blue,
-    title-color: blue.lighten(30%),
-    body-color: blue.lighten(95%),
-    footer-color: blue.lighten(80%)
-  ),
-)[
-  Pour des raisons de lisibilité, les codes abordés dans ce tuto se situent en annexe de ce document.
-]
+    full_adder_comb dut (
+        .a_i(a_i), .b_i(b_i), .cin_i(cin_i),
+        .sum_o(sum_o), .cout_o(cout_o)
+    );
+
+    initial begin : test_exhaustif
+        logic sum_attendue;
+        logic cout_attendue;
+
+        for (int vecteur = 0; vecteur < 8; vecteur++) begin
+            {a_i, b_i, cin_i} = vecteur[2:0];
+            =10;
+
+            sum_attendue  = a_i ^ b_i ^ cin_i;
+            cout_attendue = (a_i & b_i)
+                          | (a_i & cin_i)
+                          | (b_i & cin_i);
+
+            if ({cout_o, sum_o} !==
+                {cout_attendue, sum_attendue}) begin
+                $fatal(1,
+                    "vecteur=%03b obtenu=%b%b attendu=%b%b",
+                    {a_i,b_i,cin_i}, cout_o, sum_o,
+                    cout_attendue, sum_attendue);
+            end
+        end
+
+        $display("TEST_PASS: full_adder_comb");
+        $finish;
+    end
+endmodule
+```
 
 #showybox(
   title: [#text(weight: "bold", fill: black, [À retenir :] )],
@@ -439,28 +482,34 @@ Voir @code-tb_full_adder_comb pour voir le code du testbench en question
   ),
 )[
   Un testbench automatisable doit terminer avec `$fatal` en cas d'erreur et imprimer un marqueur final exact uniquement lorsque tous les tests passent. Il ne #rouge("suffit pas") de print PASS ou FAIL pour que ça fonctionne, il faut un réel #rouge("marqueur") `$fatal` pour être certain que le code *plante* et fasse ressortir une erreur nous empêchant de continuer si il y a une erreur dans le fonctionnement.
-  Un exemple de code de retour peut être :
-  ```sv
-  $fatal(1,
-    "\033[31m[ERREUR]\033[0m : Echec vecteur %03b : obtenu cout,sum=%b%b, attendu=%b%b",
-    {a_i, b_i, cin_i}, cout_o, sum_o,
-    cout_attendue, sum_attendue);
-    ```
-
-  On notera la balise `\033[31m[ERREUR]\033[0m ` qui permet d'écrire en rouge dans le terminal pour des questions de lisibilité et la balise `\033[32m[TEST_PASS]\033[0m` qui permet d'écrire en vert.
 ]
 
 
-=== La simulation - Niveau 1 : commande minimale
+=== La simulation - niveau 1 : commande minimale
 Une fois le RTL du full adder et de son testbench écrits (et qu'on a donc une description comportementale de nos modules), il faut effectuer la simulation. Pour ce faire on execute (après avoir chargé Cadence et les outils) :
 
 
 ```bash
 xrun -64bit -timescale 1ns/1ps \
-   dut/rtl/full_adder_comb.sv \
-   dut/tb/tb_full_adder_comb.sv \
+   examples/01_full_adder_comb/rtl/full_adder_comb.sv \
+   examples/01_full_adder_comb/tb/tb_full_adder_comb.sv \
    -top tb_full_adder_comb
 ```
+
+#TODO("On peut tout mettre dans le même .f") cf $arrow.b$
+
+```c
+// files to be compiled
+dkm.sv
+dkm_test.sv
+// command line options
+-gui
+-access rwc
+-linedebug
+-timescale 1ns/1ns
+```
+
+#TODO("code coverage p 67 de RTLtoGDSII cadence course")
 
 \
 * Explication de la commande* : 
@@ -469,7 +518,6 @@ xrun -64bit -timescale 1ns/1ps \
 - `-timescale` fixe l'unité et la précision par défaut.
 - `-f` lit une filelist.
 - `-top` choisit le top élaboré.
-#TODO("timesale")
 
 \
 On s'attend a voir dans la sortie:
@@ -477,21 +525,6 @@ On s'attend a voir dans la sortie:
 xcelium> run
 TEST_PASS: full_adder_comb
 ```
-
-On peut voir en tapant `ls` que trois choses sont apparues :
-- *Dossier xcelium.d* :	Base de compilation et d'élaboration de Xcelium. Elle contient notamment le snapshot simulable et les données internes utilisées par Xrun.
-- *xrun.log*	: Journal texte de la compilation, de l’élaboration et de la simulation.
-- *xrun.history* :	Historique interne des invocations Xrun, utilisé par les fonctions d’historique et de rejeu de commandes.
-
-Dans notre cas nous n'en avons plus besoin on peut donc les supprimer: 
-```bash
-rm -rf x*
-```
-$->$ Bravo vous avez fini le niveau 1 de la simulation. Passons au niveau 2.
-
-
-
-#TODO("code coverage p 67 de RTLtoGDSII cadence course")
 
 #showybox(
   title: "Note :",
@@ -505,38 +538,34 @@ $->$ Bravo vous avez fini le niveau 1 de la simulation. Passons au niveau 2.
   Il est important de bien avoir en tête d'où on lance le script et donc d'où partent les chemins relatifs!!! Une méthode sûre consiste à toujours lancer la commande depuis la racine du projet et a adapter les chemins relatif à ce point de départ plutôt que l'inverse.
 ]
 
-// -------------------  SOUS - SECTION ------------------- 
-== Niveau 2 : Utiliser les filelists
-Pour ce niveau et #rouge("dans toute la suite du tutoriel"), nous nous intéresserons au module adder_pipeline. Autrement dit, a partir de maintenant nous laissons de côté la sous-brique full_adder_comb pour ne s'intéresser qu'à l'adder_pipeline
-
-
-Le module adder_pipeline contient le sous-module full_adder_comb. Pour la simulation on peut executer xrun individuellement pour chaque DUT et chaque testbench (comme avec le niveau 1) mais une bonne pratique si on a beaucoup de fichiers RTL est d'utiliser une filelist (extension en $#rect(fill: colors.code-bg, [.f])$) pour définir *dans quel ordre* procéder à l'élaboration et qu'on ai pas de problèmes de dépendances non résolues à cause d'un mauvais ordre.
+==== Filelists 
+On peut executer xrun individuellement pour chaque DUT et chaque testbench (comme ) mais une bonne pratique si on a beaucoup de fichiers RTL est d'utiliser une filelist (extension en $#rect(fill: colors.code-bg, [.f])$) pour définir *dans quel ordre* procéder à l'élaborartion et qu'on ai pas de problèmes de dépendances non résolues à cause d'un mauvais ordre.
+même si ça n'a pas beaucoup d'intéret car on a très peu de fichiers)
 
 
 #showybox(
-title: [#text(weight: "bold", fill: black, [À retenir : séparer les rtl des tb] )],
-frame: (
-  border-color: red,
-  title-color: red.lighten(30%),
-  body-color: red.lighten(95%),
-  footer-color: red.lighten(80%)
-),
+  title: "Bonne pratique :",
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
 )[
-  Il est #rouge("primordial") de séparer les .f des modules DUT (dans le dossier *rtl*) et des testbench en deux fichiers distincts. En effet, les filelists rtl.f seront *réutilisées* par la suite dans les phases de synthèse et de pnr et ne servent pas seulement pour la simulation.
+  Il est recommandé de séparer les .f des modules DUT et des testbench en deux fichiers distincts (ce qui est fait ici).
 ]
+ 
 
-Voici ce que contient la filelist rtl.f : 
 
-#codly(footer: [*rtl.f*], breakable: false)
+#codly(footer: [*rtl.f*], breakable: true)
 ```txt
-dut/rtl/full_adder_comb.sv
-dut/rtl/adder_pipeline.sv
+examples/01_full_adder_comb/rtl/full_adder_comb.sv
 ```
 Pour le testbench: 
 
 #codly(footer: [*tb.f*], breakable: false)
 ```txt
-dut/tb/tb_adder_pipeline.sv
+examples/01_full_adder_comb/tb/tb_full_adder_comb.sv
 ```
 
 Une fois les filelists écrites on peut lancer (depuis la racine du dossier toujours):
@@ -544,9 +573,9 @@ Une fois les filelists écrites on peut lancer (depuis la racine du dossier touj
 #codly(stroke: 1pt + red)
 ```bash
 xrun -64bit -sv -timescale 1ns/1ps \
-  -f dut/filelists/rtl.f \
-  -f dut/filelists/tb.f \
-  -top tb_adder_pipeline \
+  -f examples/01_full_adder_comb/sim/rtl.f \
+  -f examples/01_full_adder_comb/sim/tb.f \
+  -top tb_full_adder_comb \
 ```
 #codly(stroke: 1pt + gray)
 \
@@ -554,16 +583,46 @@ xrun -64bit -sv -timescale 1ns/1ps \
 
 
 La sortie devrait être identique qu'avec la commande minimale précédente.
-Évidemment, passer par des filelists quand on a un seul fichier de tb et de RTL n'est pas très pertinent mais c'est une bonne pratique à avoir en tête.
+Evidemment, passer par des filelist quand on a un seul fichier de tb et de RTL n'est pas très pertinent mais c'est une bonne pratique à avoir en tête.
 
-De la même manière, Xcelium va mettre ses fichiers dans le répertoire ou il a été exécuté : 
+\
+#showybox(
+  title: [Note : ],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  Si on veut élaborer dans un dossier particulier on peut défnir une worklib 
+
 ```bash
-rm -rf x*
+xrun -64bit -timescale 1ns/1ps \
+   -f examples/01_full_adder_comb/sim/rtl.f \
+   -f examples/01_full_adder_comb/sim/tb.f \
+   -top tb_full_adder_comb \
+   -work worklib
 ```
+Pour dans un second temps reload avec l'option -R : 
+```bash
+xrun -64bit -R worklib tb_full_adder_comb
+```
+
+\
+On peut également procéder sans filelist  et pointer directement vers les fichiers .sv mais ce n'est pas une bonne pratique (risque d'oubli, de path mauvais, pas modulable si on veut enlever un module par exemple): 
+```bash
+xrun -64bit -timescale 1ns/1ps \
+   examples/01_full_adder_comb/rtl/full_adder.sv \
+   examples/01_full_adder_comb/tb/tb_full_adder_comb.sv \
+   -top tb_full_adder_comb
+```
+]
+Note : 
 #TODO("Rajoute précision sur le timescale, mettre commande sans fileliste")
 
-== Niveau 3 : Wrapper réutilisable
-Comme nous en avons déjà discutés, en pratique, on ne va pas lancer cette commande à la main car on ne sait pas vraiment ou Xcelium stocke ses fichiers de simu, les logs, les résulats etc... Dans un flow numérique tout peut être une source d'erreur et stipuler explicitement ou vont chaque fichier peut faire gagner enormément de temps. C'est pourquoi on va privilégier l'utilisation d'un wrapper qui va tout automatsqer pour nous
+==== La simulation - niveau 2 : Wrapper réutilisable
+Comme nous en avons déjà discutés, en pratique, on ne va pas lancer cette commande à la main car on ne sait pas vraiment ou Xcellium stocke ses fichiers de simu, les logs, les résulats etc... Dans un flow numérique tout peut être une source d'erreur et stipuler explicitement ou vont chaque fichier peut faire gagner enormément de temps. C'est pourquoi on va privilégier l'utilisation d'un wrapper qui va tout automatsqer pour nous
 
 
 #TODO("A eclaircir ...")
@@ -586,63 +645,226 @@ simvision waves.shm
 
 
 Le wrapper suivant crée un dossier de résultat unique, isole la bibliothèque Xcelium, conserve le code retour et vérifie le marqueur final.
-// #codly(footer: [*run_sim.sh*], breakable: true, )
-#TODO("mettre le script en annexe")
+#codly(footer: [*run_sim.sh*], breakable: true, )
+```sh
+#!/usr/bin/env bash
+# Simulation RTL Xcelium, du full adder au pipeline.
+
+# Pour que certaines erreur communes fassent crasher le code (sinon on peut avoir des bugs caches qui ressortent par la suite)
+set -Eeuo pipefail
+
+# Message a afficher pour le -h ou en cas d'erreur d'utilisation du script
+usage() {
+    cat <<'EOF' # cat jusqu'à EOF
+Usage:
+  bash scripts/run_sim.sh full_adder_comb [--gui]
+  bash scripts/run_sim.sh adder_pipeline [--gui]
+
+Variables optionnelles:
+  XRUN_BIN=xrun
+  RUN_ROOT=/tmp/digi_tuto_runs
+  RUN_ID=nom_du_run
+  XRUN_EXTRA_ARGS="..."
+EOF
+}
+
+############ RECUPERATION DES CHEMINS ############
+# Interet :
+# 1. Maintenabilite : Centralisation des chemins et noms de modules.
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" #${BASH_SOURCE[0]} : Recupere le chemin de ce script (meme si il a ete source).
+project_root="$(cd -- "$script_dir/.." && pwd -P)"
+
+############ Initialisation des variables ############
+design="" # Design a simuler
+gui=0 # Par defaut pas de gui sauf si gui == 1 :
+
+############ LECTURE DE LA COMMANDE ############ 
+# Interet :
+# 1. Scalabilite : Ajouter un nouveau design = ajouter un case supplementaire.
+# 2. Maintenabilite
+
+# while (($# > 0)) : Parcourt tous les arguments passes au script
+while (($# > 0)); do
+    case "$1" in
+        --gui)
+            gui=1
+            shift
+            ;;
+        -h|--help) # Le fameux appel en cas de help
+            usage
+            exit 0
+            ;;
+        full_adder_comb|adder_pipeline) # Si l argument suivant est un des deux cas traites dans ce script
+	    # Verification que pas de doublons).
+            [[ -z "$design" ]] || {
+                printf 'ERREUR: un seul design est attendu\n' >&2
+                exit 2
+            }
+            design=$1
+            shift
+            ;;
+        *)
+            printf 'ERREUR: argument inconnu: %s\n' "$1" >&2 # >&2 : Redirige la sortie d'erreur vers stderr (bonne pratique)
+	    usage >&2 #usage permet de garder le message du print en plus de la stderr
+            exit 2
+            ;;
+    esac
+done
+
+############ RECUPERATION DES CHEMINS SPECIFIQUES A CHAQUE DESIGN ############
+case "$design" in
+    full_adder_comb)
+        example_dir="$project_root/examples/01_full_adder_comb"
+        tb_top=tb_full_adder_comb
+        pass_marker="TEST_PASS: full_adder_comb"
+        ;;
+    adder_pipeline)
+        example_dir="$project_root/examples/02_adder_pipeline"
+        tb_top=tb_adder_pipeline
+        pass_marker="TEST_PASS: adder_pipeline"
+        ;;
+    *)
+        printf 'ERREUR: design absent\n' >&2
+        usage >&2
+        exit 2
+        ;;
+esac
+
+############ VERIFICATION QUE XRUN EST RECONNU ############ 
+
+xrun_bin=${XRUN_BIN:-xrun}
+if ! command -v "$xrun_bin" >/dev/null 2>&1; then
+    printf 'ERREUR: xrun est introuvable; chargez l environnement Cadence\n' >&2
+    exit 127 # Code d'erreur standard pour "commande introuvable".
+fi
+
+############ CREATION D'UN DOSSIER DE RUN ############ 
+# Interet : 
+# Tracabilite : Chaque run a un ID unique --> facilite le debogage.
+# Isolation : Chaque run est dans son propre dossier --> evite les conflits.
+# Reproductibilite : Le run_id peut etre reutilise pour relancer le meme test.
+
+
+run_root=${RUN_ROOT:-/tmp/digi_tuto_runs}
+run_id=${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}
+# if permet de s'assurer qu'il n'y a pas d'espaces ou caracteres speciaux qui pourraient poser probleme dans les chemins 
+if [[ ! "$run_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    printf 'ERREUR: RUN_ID invalide: %s\n' "$run_id" >&2
+    exit 2
+fi
+run_dir="$run_root/xcelium/$design/$run_id"
+if [[ -e "$run_dir" ]]; then
+    printf 'ERREUR: le dossier existe deja: %s\n' "$run_dir" >&2
+    exit 2
+fi
+mkdir -p "$run_dir"
+
+############ RESOUDRE FILELIST ############
+# Transformer un fichier de filelist (ex: rtl.f) contenant des chemins relatifs en chemins absolus ou interpretables par Xcelium.
+# Interet :
+# Portabilite : Le script peut etre lance depuis n importe quel repertoire.
+# Clarte : Xcelium recoit des chemins explicites : evite les erreurs de file not found.
+# Flexibilite : Permet d utiliser des chemins relatifs dans les filelists sources.
+
+
+resolve_filelist() {
+    local source_file=$1
+    local target_file=$2
+    local line
+    : > "$target_file"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line=${line%%#*}
+        line=${line#"${line%%[![:space:]]*}"}
+        line=${line%"${line##*[![:space:]]}"}
+        [[ -n "$line" ]] || continue
+        if [[ "$line" == /* || "$line" == +* || "$line" == -* ]]; then
+            printf '%s\n' "$line" >> "$target_file"
+        else
+            printf '%s/%s\n' "$project_root" "$line" >> "$target_file"
+        fi
+    done < "$source_file"
+}
+
+
+resolve_filelist "$example_dir/sim/rtl.f" "$run_dir/rtl.f"
+resolve_filelist "$example_dir/sim/tb.f" "$run_dir/tb.f"
+
+############ FICHIER TCL POUR XCELLIUM ############
+# Cree le dossier de stockage des coubres (si on veut check "a la main" par la suite). Extension SHM pour "Shared Memory" 
+# Cree des sondes ("probes") pour chaque signaux du module tb_top (par ex: tb_adder_pipeline). -depth all --> inclut tous les modules de maniere recursibee
+
+tcl_file="$run_dir/run.tcl"
+{
+    printf 'database -open waves -into {%s} -default\n' "$run_dir/waves.shm"
+    printf 'probe -create %s -all -depth all\n' "$tb_top"
+    printf 'run\n'
+    if ((gui == 0)); then
+        printf 'exit\n'
+    fi
+} > "$tcl_file"
+
+############ LA COMMANDE XCELIUM A LANCER ############
+# Run la simulation
+
+cmd=(
+    "$xrun_bin"
+    -64bit
+    -sv
+    -timescale 1ns/1ps
+    -access +rwc
+    -f "$run_dir/rtl.f"
+    -f "$run_dir/tb.f"
+    -top "$tb_top"
+    -xmlibdirname "$run_dir/xcelium.d"
+    -input "$tcl_file"
+    -logfile "$run_dir/xrun.log"
+)
+if ((gui == 1)); then
+    cmd+=(-gui)
+fi
+if [[ -n ${XRUN_EXTRA_ARGS:-} ]]; then
+    read -r -a extra_args <<< "$XRUN_EXTRA_ARGS"
+    cmd+=("${extra_args[@]}")
+fi
+
+############ FIN DU SCRIPT ############
+# set -e (par defaut) : Normalement, le script s'arrete si une commande echoue.
+# set +e : Desactive ce comportement pour capturer le code de retour de xrun.
+# ${cmd[@]} : Expand le tableau cmd en une seule commande (gestion des espaces dans les chemins).
+
+
+printf 'Simulation Xcelium: %s\n' "$design"
+printf 'Resultats: %s\n' "$run_dir"
+set +e
+"${cmd[@]}"
+tool_rc=$?
+set -e
+
+# Vérification du resultat 
+# Erreur : tool_rc != 0 : Si Xcelium a plante 
+if ((tool_rc != 0)); then
+    printf 'RESULTAT: FAIL (xrun=%d)\n' "$tool_rc" >&2
+    exit "$tool_rc"
+fi
+
+# Repere si le markeer : TEST_PASS: de adder_pipeline est bien present (ne pas l'oublier dans le tb)
+if ! grep -Fxq "$pass_marker" "$run_dir/xrun.log"; then
+    printf 'RESULTAT: FAIL (marqueur final absent)\n' >&2
+    exit 1
+fi
+
+# Si pas d'erreur : PASS 
+printf 'RESULTAT: PASS\n'
+```
 
 Pour lancer le script : 
 
 #codly(stroke: 1pt + red)
 ```bash
-bash flow/01_simulation/run_sim.sh adder_pipeline 
+bash scripts/run_sim.sh full_adder_comb 
 ```
 #codly(stroke: 1pt + gray)
 
-Avec l'interface graphique : 
-
-```bash
-bash flow/01_simulation/run_sim.sh adder_pipeline --gui
-```
-
-\
-*Fonctionnalités clés du script :*
-- Détermine automatiquement : le répertoire contenant le script et la racine du projet. Même si ça n'est pas une bonne pratique le script peut donc être lancé depuis n'importe quel répertoire.
-- Crée un répertoire de run propre dans : rundir/01_simulation/adder_pipeline/
-- Si existant, supprime le contenu du run précédent afin d'éviter l'utilisation d'anciens résultats par exemple.
-- Crée une base de formes d'onde SHM consultables par SimVision dans: waves.shm/ et y enregistre les signaux du testbench et des sous-modules 
-- Redirige les fichiers générés par Xcelium vers le répertoire du run :
-- Récupère le code de retour de Xrun pour détecter si c'est une erreur de compilation, d'élaboration ou de simulation
-
-\
-#showybox(
-  title: "Note : Modularité et simplicité",
-  frame: (
-    border-color: blue,
-    title-color: blue.lighten(30%),
-    body-color: blue.lighten(95%),
-    footer-color: blue.lighten(80%)
-  ),
-)[
-  Le script est pensé pour être modulable et réutilisable dans d'autres contextes avec d'autres DUT. Le script est volontairement gardé simple pour des raisons de lisibilité mais on peut bien entendu l'améliorer. Voici quelques points d'amélioration possible :
-  #rect(fill: white, radius: 5pt,[
-    - Seul le design adder_pipeline est accepté.
-  - Le run précédent est supprimé à chaque lancement.
-  - Le script ne conserve pas encore plusieurs simulations datées.
-  - Les options Xrun sont fixées dans le script.
-  - Il n'exécute pas encore une liste de tests ou une régression complète.
-  ])  
-]
-
-#showybox(
-  title: "Note : Interface graphique",
-  frame: (
-    border-color: blue,
-    title-color: blue.lighten(30%),
-    body-color: blue.lighten(95%),
-    footer-color: blue.lighten(80%)
-  ),
-)[
-  La philosophie c'est sans interface sauf si bug.
-]
 
 #showybox(
   title: [#text(weight: "bold", fill: black, [Attention : source $!=$ bash - 1/2] )],
@@ -655,6 +877,52 @@ bash flow/01_simulation/run_sim.sh adder_pipeline --gui
 )[
   Dans la logique les commande source et bash (ou ./) servent toutes à executer un processus mais la commande source est prévue pour mettre à jours des variables d'environnement (comme on en reparle plus loin). Pour cette raison, quand on execute un script il ne faut #rouge("jamais executer avec source") et toujours privilégier bash ou ./
 ]
+
+// -------------------  SOUS - SECTION ------------------- 
+== Exemple 2 : Full adder pipeliné
+
+=== Additionneur pipeliné
+Un second exemple ajoute une clock, un reset synchrone, des registres et un protocole `valid`. Une transaction acceptée avec `valid_i=1` produit un résultat valide un cycle plus tard.
+Le scoreboard doit décaler la référence d'un cycle. Les stimuli sont de préférence appliqués au front descendant afin d'éviter une course avec la capture au front montant.
+
+#codly(footer: [*adder_pipeline.sv*], breakable: true, )
+```systemverilog
+module adder_pipeline =(
+    parameter int unsigned WIDTH = 8
+) (
+    input  logic             clk_i,
+    input  logic             rst_ni,
+    input  logic             valid_i,
+    input  logic [WIDTH-1:0] a_i,
+    input  logic [WIDTH-1:0] b_i,
+    input  logic             cin_i,
+    output logic             valid_o,
+    output logic [WIDTH-1:0] sum_o,
+    output logic             cout_o
+);
+    logic [WIDTH:0] result_q;
+    logic           valid_q;
+
+    always @(posedge clk_i) begin
+        if (!rst_ni) begin
+            result_q <= '0;
+            valid_q  <= 1'b0;
+            sum_o    <= '0;
+            cout_o   <= 1'b0;
+            valid_o  <= 1'b0;
+        end else begin
+            result_q <= {1'b0,a_i}
+                      + {1'b0,b_i}
+                      + cin_i;
+            valid_q  <= valid_i;
+            {cout_o,sum_o} <= result_q;
+            valid_o <= valid_q;
+        end
+    end
+endmodule
+```
+Les étapes de simualtions de ce deuxième exemple sont très similaires à l'exemple précédent. Il suffit simplement de réadapter les chemins pour pointer vers les bons fichiers.
+
 \
 Maintenant que nous avons simulés notre DUT, nous pouvons passer à synthèse.
 
@@ -1659,434 +1927,6 @@ Packaging et test
     return "A." + numbering("1 ", nums.pos().last())
   },supplement: [Annexe], outlined: false
 )
-
-== Code : tb_full_adder_comb.sv <code-tb_full_adder_comb>
-#codly(footer: [*tb_full_adder_comb.sv*], breakable: true)
-```sv
-`timescale 1ns/1ps
-
-// Banc de test dirige et auto-verifiant du full adder.
-module tb_full_adder_comb;
-
-  logic a_i;
-  logic b_i;
-  logic cin_i;
-  logic sum_o;
-  logic cout_o;
-
-  full_adder_comb dut (
-      .a_i    (a_i),
-      .b_i    (b_i),
-      .cin_i  (cin_i),
-      .sum_o  (sum_o),
-      .cout_o (cout_o)
-  );
-
-  initial begin : test_exhaustif
-      logic sum_attendue;
-      logic cout_attendue;
-
-      a_i   = 1'b0;
-      b_i   = 1'b0;
-      cin_i = 1'b0;
-
-      // Les huit combinaisons de la table de verite sont testees.
-      for (int vecteur = 0; vecteur < 8; vecteur++) begin
-          {a_i, b_i, cin_i} = vecteur[2:0];
-          // Le delai laisse le temps aux mises a jour combinatoires.
-          #10;
-
-          sum_attendue  = a_i ^ b_i ^ cin_i;
-          cout_attendue = (a_i & b_i) | (a_i & cin_i) | (b_i & cin_i);
-
-          if ((sum_o !== sum_attendue) || (cout_o !== cout_attendue)) begin
-              $fatal(1,
-                      "\033[31m[ERREUR]\033[0m : Echec vecteur %03b : obtenu cout,sum=%b%b, attendu=%b%b",
-                      {a_i, b_i, cin_i}, cout_o, sum_o,
-                      cout_attendue, sum_attendue);
-          end
-      end
-
-      $display("\033[32m[TEST_PASS]\033[0m: full_adder_comb");
-      $finish;
-  end
-
-endmodule
-```
-== Code : rtl et testbench du adder_pipeline<code-adder_pipeline>
-#codly(footer: [*tb_adder_pipeline.sv*], breakable: true)
-```sv
-`timescale 1ns/1ps
-
-module tb_adder_pipeline;
-
-    localparam int unsigned WIDTH          = 32;
-    localparam time         CLOCK_PERIOD   = 10ns;
-    localparam int unsigned RANDOM_TESTS   = 100;
-
-    logic             clk_i;
-    logic             rst_ni;
-
-    logic             valid_i;
-    logic [WIDTH-1:0] a_i;
-    logic [WIDTH-1:0] b_i;
-    logic             cin_i;
-
-    logic             valid_o;
-    logic [WIDTH-1:0] sum_o;
-    logic             cout_o;
-
-    // Valeur attendue au prochain cycle de sortie.
-    logic             expected_valid_q;
-    logic [WIDTH:0]   expected_result_q;
-
-    int unsigned error_count;
-    int unsigned checked_transaction_count;
-
-    adder_pipeline #(
-        .WIDTH(WIDTH)
-    ) dut (
-        .clk_i   (clk_i),
-        .rst_ni  (rst_ni),
-
-        .valid_i (valid_i),
-        .a_i     (a_i),
-        .b_i     (b_i),
-        .cin_i   (cin_i),
-
-        .valid_o (valid_o),
-        .sum_o   (sum_o),
-        .cout_o  (cout_o)
-    );
-
-    // -------------------------------------------------------------------------
-    // Horloge
-    // -------------------------------------------------------------------------
-
-    initial begin
-        clk_i = 1'b0;
-
-        forever begin
-            #(CLOCK_PERIOD / 2);
-            clk_i = ~clk_i;
-        end
-    end
-
-    // -------------------------------------------------------------------------
-    // Modèle de référence
-    // -------------------------------------------------------------------------
-
-    function automatic logic [WIDTH:0] reference_addition (
-        input logic [WIDTH-1:0] a,
-        input logic [WIDTH-1:0] b,
-        input logic             cin
-    );
-        reference_addition =
-            {1'b0, a}
-            + {1'b0, b}
-            + {{WIDTH{1'b0}}, cin};
-    endfunction
-
-    function automatic logic [WIDTH-1:0] random_word;
-        logic [WIDTH-1:0] value;
-
-        for (int unsigned bit_index = 0;
-             bit_index < WIDTH;
-             bit_index++) begin
-
-            value[bit_index] = $urandom_range(1, 0);
-        end
-
-        random_word = value;
-    endfunction
-
-    // -------------------------------------------------------------------------
-    // Pilotage des entrées
-    //
-    // Les entrées sont modifiées sur le front descendant afin qu'elles soient
-    // stables avant le front montant suivant.
-    // -------------------------------------------------------------------------
-
-    task automatic drive_cycle (
-        input logic             valid,
-        input logic [WIDTH-1:0] a,
-        input logic [WIDTH-1:0] b,
-        input logic             cin
-    );
-        @(negedge clk_i);
-
-        valid_i = valid;
-        a_i     = a;
-        b_i     = b;
-        cin_i   = cin;
-    endtask
-
-    // -------------------------------------------------------------------------
-    // Scoreboard
-    //
-    // Une transaction présentée avant le front montant N est capturée à N.
-    // Son résultat est disponible en sortie après le front montant N+1.
-    //
-    // Le scoreboard mémorise donc le résultat attendu pendant un cycle.
-    // -------------------------------------------------------------------------
-
-    always @(posedge clk_i) begin : p_scoreboard
-
-        logic           sampled_rst_ni;
-        logic           sampled_valid;
-        logic [WIDTH:0] sampled_result;
-
-        // Échantillonnage des entrées au front montant.
-        sampled_rst_ni = rst_ni;
-        sampled_valid  = valid_i;
-        sampled_result = reference_addition(a_i, b_i, cin_i);
-
-        // Attendre la mise à jour des non-blocking assignments du DUT.
-        #1ps;
-
-        if (sampled_rst_ni === 1'b0) begin
-
-            expected_valid_q  = 1'b0;
-            expected_result_q = '0;
-
-            if (valid_o !== 1'b0) begin
-                error_count++;
-
-                $error(
-                    "[%0t] Reset: valid_o devrait valoir 0, valeur obtenue=%b",
-                    $time,
-                    valid_o
-                );
-            end
-
-            if (sum_o !== '0) begin
-                error_count++;
-
-                $error(
-                    "[%0t] Reset: sum_o devrait valoir 0, valeur obtenue=0x%0h",
-                    $time,
-                    sum_o
-                );
-            end
-
-            if (cout_o !== 1'b0) begin
-                error_count++;
-
-                $error(
-                    "[%0t] Reset: cout_o devrait valoir 0, valeur obtenue=%b",
-                    $time,
-                    cout_o
-                );
-            end
-
-        end else if (sampled_rst_ni === 1'b1) begin
-
-            // Vérification du signal valid.
-            if (valid_o !== expected_valid_q) begin
-                error_count++;
-
-                $error(
-                    "[%0t] Erreur valid: attendu=%b, obtenu=%b",
-                    $time,
-                    expected_valid_q,
-                    valid_o
-                );
-            end
-
-            // Les données ne sont significatives que lorsque valid_o vaut 1.
-            if (expected_valid_q === 1'b1) begin
-
-                checked_transaction_count++;
-
-                if ({cout_o, sum_o} !== expected_result_q) begin
-                    error_count++;
-
-                    $error(
-                        "[%0t] Erreur résultat: attendu=0x%0h, obtenu=0x%0h",
-                        $time,
-                        expected_result_q,
-                        {cout_o, sum_o}
-                    );
-                end
-            end
-
-            // Préparation de la valeur attendue au cycle suivant.
-            expected_valid_q  = sampled_valid;
-            expected_result_q = sampled_result;
-
-        end else begin
-
-            error_count++;
-
-            $error(
-                "[%0t] rst_ni contient une valeur inconnue: %b",
-                $time,
-                sampled_rst_ni
-            );
-
-            expected_valid_q  = 1'b0;
-            expected_result_q = '0;
-        end
-    end
-
-    // -------------------------------------------------------------------------
-    // Séquence de test
-    // -------------------------------------------------------------------------
-
-    initial begin : p_stimulus
-
-        int unsigned seed;
-        logic        random_valid;
-
-        rst_ni  = 1'b0;
-        valid_i = 1'b0;
-        a_i     = '0;
-        b_i     = '0;
-        cin_i   = 1'b0;
-
-        error_count               = 0;
-        checked_transaction_count = 0;
-
-        // Graine fixe : les tests aléatoires sont reproductibles.
-        seed = 32'h1BAD_C0DE;
-        void'($urandom(seed));
-
-        $display("INFO: début du test adder_pipeline");
-        $display("INFO: WIDTH=%0d", WIDTH);
-        $display("INFO: seed=0x%08h", seed);
-
-        // Reset synchrone maintenu pendant plusieurs fronts montants.
-        repeat (3) begin
-            @(posedge clk_i);
-        end
-
-        @(negedge clk_i);
-        rst_ni = 1'b1;
-
-        // ---------------------------------------------------------------------
-        // Tests dirigés
-        // ---------------------------------------------------------------------
-
-        // 0 + 0 + 0 = 0
-        drive_cycle(
-            1'b1,
-            '0,
-            '0,
-            1'b0
-        );
-
-        // Transactions back-to-back.
-        //
-        // Maximum + 0 + 1 :
-        // somme = 0, retenue = 1.
-        drive_cycle(
-            1'b1,
-            '1,
-            '0,
-            1'b1
-        );
-
-        // Maximum + maximum + 1 :
-        // somme = maximum, retenue = 1.
-        drive_cycle(
-            1'b1,
-            '1,
-            '1,
-            1'b1
-        );
-
-        // Cycle invalide : les sorties de données ne sont pas vérifiées.
-        drive_cycle(
-            1'b0,
-            '0,
-            '0,
-            1'b0
-        );
-
-        // Nouvelle transaction après un trou dans valid.
-        drive_cycle(
-            1'b1,
-            '0,
-            '1,
-            1'b0
-        );
-
-        // ---------------------------------------------------------------------
-        // Tests pseudo-aléatoires
-        // ---------------------------------------------------------------------
-
-        for (int unsigned test_index = 0;
-             test_index < RANDOM_TESTS;
-             test_index++) begin
-
-            // Environ 75 % de cycles valides.
-            random_valid = ($urandom_range(3, 0) != 0);
-
-            drive_cycle(
-                random_valid,
-                random_word(),
-                random_word(),
-                $urandom_range(1, 0)
-            );
-        end
-
-        // ---------------------------------------------------------------------
-        // Vidage du pipeline
-        // ---------------------------------------------------------------------
-
-        drive_cycle(
-            1'b0,
-            '0,
-            '0,
-            1'b0
-        );
-
-        drive_cycle(
-            1'b0,
-            '0,
-            '0,
-            1'b0
-        );
-
-        // Laisser le scoreboard vérifier le dernier cycle.
-        @(posedge clk_i);
-        #2ps;
-
-        if (error_count == 0) begin
-            $display(
-                "INFO: %0d transactions valides vérifiées",
-                checked_transaction_count
-            );
-
-            $display("TEST_PASS: adder_pipeline");
-            $finish;
-        end else begin
-            $display(
-                "\033[31m[TEST_FAIL]\033[0m : adder_pipeline (%0d erreurs)",
-                error_count
-            );
-
-            $fatal(
-                1,
-                "\033[31m[ERROR]\033[0m : Échec du testbench adder_pipeline"
-            );
-        end
-    end
-
-    // Protection contre un testbench bloqué.
-    initial begin : p_timeout
-        #100us;
-
-        $fatal(
-            1,
-            "\033[31m[TEST_TIMEOUT]\033[0m: adder_pipeline"
-        );
-    end
-
-endmodule
-```
-
-
 
 // ----------------- SOUS-SECTION ------------------ 
 == Nomenclature classique dans les PDK <ann-nomenclature>
