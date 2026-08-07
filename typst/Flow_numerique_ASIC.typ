@@ -4,7 +4,7 @@
   title: "Prise en main du flow numérique ASIC",
   authors: (
     ("Romain DUCHADEAU", "IP2I / CNRS", "r.duchadeau@ip2i.in2p3.fr"),
-    ("Sabra KARIM", "IP2I / CNRS", "k.sabra@ip2i.in2p3.fr"),
+    // ("Sabra KARIM", "IP2I / CNRS", "k.sabra@ip2i.in2p3.fr"),
   ),
   logos: ("Img/logo_CNRS.jpg", "Img/logo_IP2I.png"), //ex : "Img/logo_CNRS.jpg"
   lang: "fr",
@@ -14,7 +14,7 @@
 // *************************************************
 = Introduction
 
-Ce tutoriel s'adresse a un public initié et/ou motivé (étudiant ingénieur ou ingénieur en microélectronique analogique). Il permet une prise en main *concrête* et *rapide* du flow numérique. Ce tutoriel n'a pas pour ambition d'être un guide ultime pour tout comprendre, pour plus de détails il existe une très bonne série de vidéo réalisée par Adi Teman dont vous pouvez retrouver le lien #link("https://www.youtube.com/watch?v=GIPhBfenqMc&list=PLZU5hLL_713x0_AV_rVbay0pWmED7992G", "ici") ou le github #link("https://github.com/enics-labs/rtl2gds-demo", "ici").
+Ce tutoriel s'adresse à un public initié un minimum à l'aise avec linux (étudiant ingénieur ou ingénieur en microélectronique analogique). Il permet une prise en main *concrète* et *rapide* du flow numérique. Ce tutoriel n'a pas pour ambition d'être un guide ultime pour tout comprendre, pour plus de détails il existe de très bonnes ressources. Parmi, elle la formation "RTL to GDSII" de Cadence ou une très bonne série de vidéo réalisée par Adi Teman dont vous pouvez retrouver le lien #link("https://www.youtube.com/watch?v=GIPhBfenqMc&list=PLZU5hLL_713x0_AV_rVbay0pWmED7992G", "ici") ou le github #link("https://github.com/enics-labs/rtl2gds-demo", "ici").
 
 \
 *Note :* Dans ce parcours les encadrés en $#rect(stroke: blue, [#text(fill: blue, [bleu])])$ sont généralement des notes ou des conseils alors que les encadrés en $#rect(stroke: red, [#text(fill: red, [rouge])])$ font référence à des points importants et jalons de progression a ne pas manquer.
@@ -26,7 +26,7 @@ Le flow numérique (et  a fortiori ce tutoriel) se découpe en trois grandes ét
 #figure(
   caption: [Méthodologie du flow numérique],
   [#showybox(
-  title: [#text(weight: "bold", fill: black, [Etape 1 : Simulation RTL  (cf. @sec-simu_rtl)] )],
+  title: [#text(weight: "bold", fill: black, [Etape 1 : Simulation] )],
   title-style: (align: center),
   body-style: (align: center),
   footer-style: (align: center),
@@ -64,7 +64,7 @@ $arrow.b$
 $arrow.b$
 
 #showybox(
-  title: [#text(weight: "bold", fill: black, [Etape 3 : Place and route] )],
+  title: [#text(weight: "bold", fill: black, [Etape 3 : Placement routage (PnR)] )],
   title-style: (align: center),
   body-style: (align: center),
   footer-style: (align: center),
@@ -82,7 +82,7 @@ $arrow.b$
 ])<fig-methodologie>
 
 \
-
+#TODO("modifier les fichiers de chaque étapes")
 
 #showybox(
   title: "Note : ",
@@ -104,15 +104,14 @@ $arrow.b$
 \
 *\** Il existe d'autres outils que ceux cités mais ils ne seront pas évoqués dans ce tutoriel. La démarche restant exactement la même d'un outil à l'autre il faudra simplement réadapter les scripts en cas de changement d'outil.
 
+Pour illustrer les notions vues dans ce tutoriel, nous allons passer ensemble le flow numérique complet (du rtl jusqu'au layout) sur un bloc d'additionneur pipeliné appelé "adder_pipeline" 
 
-== Pourquoi deux exemples
-Le full adder est un bloc très simple : il possède huit combinaisons et aucune horloge. Il permet d'apprendre le RTL, le testbench, les filelists, une contrainte combinatoire, la synthèse et un premier placement sans mélanger les notions et avoir des problèmes d'horloge.
-
-\
-L'additionneur pipeliné ajoute des registres, une clock, un reset et un signal de validité. Il permet, dans un second temps d'étudier des problématiques temporelles (la ou les vrais problèmes commencent) comme la latence, setup, hold, MMMC, CTS etc...
+== Pourquoi cet exemple
+Un bloc classique par lequel débuter est le full adder. Le full adder est un bloc très simple : il possède huit combinaisons et aucune horloge (on parle alors de bloc purement combinatoire). Il permet d'apprendre le RTL, le testbench, les filelists, une contrainte combinatoire, la synthèse et un premier placement sans mélanger les notions et avoir des problèmes d'horloge. Cependant, comme il ne possède pas d'horloge, nous passerions a côté de pleins de notions importantes (le timing et l'horloge étant souvent le point critique d'un circuit numérique). C'est pourquoi nous allons plutôt dérouler le flow sur un bloc d'additionneur pipeliné.
 
 \
-Il vous appartient de terminer le flow complet avec le full_adder_comb puis, dans un deuxième temps, repasser le flow avec le adder_pipeline ou bien de dérouler chaque étape du flow avec les deux exemples l'un après l'autre pour voir les différences.
+L'additionneur pipeliné ajoute des registres, une clock, un reset et un signal de validité. Il permet, dans un second temps d'étudier des problématiques temporelles comme la latence, setup, hold, MMMC, CTS etc...
+
 
 #v(0.5cm)
 #showybox(
@@ -129,7 +128,7 @@ Il vous appartient de terminer le flow complet avec le full_adder_comb puis, dan
 
 
 == Arborescence du dossier du tutoriel
-
+#TODO("Remodifier l'arborescence")
 #showybox(
 title: "Racine du dossier", 
 [Racine principale du git. Toujours lancer les scripts depuis ce dossier],
@@ -143,32 +142,12 @@ columns(3)[
 #showybox(
 title-style: (boxed-style: (:)),
 title: "exemples",
-[Dossier contenant les #rouge("fichiers spécifiques") des deux exemples full adder combinatoire (01) et pipeline (02)],
-columns(2)[
-#showybox(
-
-title: [#text(12pt,[Ex 01])],
-[
+[Dossier contenant les #rouge("fichiers spécifiques") de notre exemple. On y retrouve :
 - rtl
 - tb
-- sim
-- syn
-- pnr
-]
-)
+- constraints : fichiers pour la synthèse
+],
 
-#colbreak()
-#showybox(
-title: [#text(12pt,[Ex 02])],
-[
-- rtl
-- tb
-- sim
-- syn
-- pnr
-]
-)
-]
 )
 
 #colbreak()
@@ -226,10 +205,10 @@ title: "innovus",
   Pour des raisons de répétabilité, les scripts ne seront jamais écrits avec des _PATH_ relatifs mais seront toujours écrits en utilisant des PATH absolu ou chargé à partir de variables (elles même chargées à partir d'un fichier qui "comprend" les chemins relatifs). Plus de détails plus loin.
 ]
 
-== Approche pédagogique : méthode en 2 niveaux d'abstraction
+== Approche pédagogique : méthode en plusieurs niveaux d'abstraction
 
 Chaque chapitre montre d'abord:
-1. L'appel direct à l'outil avec une *commande minimale*. C'est le coeur de l'utilisation de l'outil et c'est ce qui sera appelé par les scripts dans la suite donc il est très important de bien maîtriser cette étape.
+1. L'appel direct à l'outil (quand c'est possible) avec une *commande minimale*. C'est le coeur de l'utilisation de l'outil et c'est ce qui sera appelé par les scripts dans la suite donc il est très important de bien maîtriser cette étape.
 2. Dans un second temps, on utilise un script (wrapper) pour effectuer des vérifications, lancer la commande minimale, choisir un dossier de résultats et donner le résultat de manière structurée. En pratique, on utilise uniquement ce genre de script en microélectronique numérique car ils permettent de *gagner du temps*, d'*éviter les erreurs*, de *contrôler l'environnement de travail* et sont *réutilisables* et permettent donc à quelqu'un d'autre de l'utiliser et de détecter une potentielle erreur dans notre code.
 
 
@@ -305,6 +284,9 @@ Voici les entrées sorties attendues pour cette phase de simulation :
 )],
 caption: [Entrées sorties de la phase de simulation (#text(fill: green, [*entrées*]),  #text(fill: orange, [*sorties*]))]
 )<tab_elements_simu>
+
+\
+On peut noter qu'il n'y a pas réellement de sortie à proprement parler pour la simulation. Notre "sortie" est le verdict des scripts.
 
 // -------------------  SOUS - SECTION ------------------- 
 ==  Niveau 1 : Commande Xcelium minimale
@@ -707,13 +689,13 @@ Dans un premier temps il est primordial de comprendre ce dont on a besoin pour l
   table.header(
     [*Élément*], [*Exemple*], [*Rôle*],
   ),
-  [RTL], [`full_adder_comb.sv`], [Description logique synthétisable],
+  [RTL], [`adder_pipeline.sv`], [Description logique synthétisable],
   [Filelist], [`rtl.f`], [Ordre et chemins des sources],
   [Contraintes], [`constraints.sdc`], [Clocks, délais d'E/S et exceptions],
   [Liberty], [`stdcells_tc.lib`], [Fonctions, arcs, délais et puissance],
-  [Environnement], [`02_adder_pipeline.env`], [Chemin absolu des fichiers ],
-  [Netlist mappée], [`full_adder_comb.mapped.v`], [Cellules choisies],
-  [SDC exporté], [`mapped.sdc`], [Contraintes transmises],
+  [Environnement], [`conf_ihp130.env`], [Chemin absolu des fichiers ],
+  [Netlist mappée], [`adder_pipeline.mapped.v`], [Cellules choisies],
+  [SDC exporté], [`adder_pipeline.mapped.sdc`], [Contraintes transmises],
   [Rapports], [`report_timing.rpt`, `report_area.rpt`, `report_qor.rpt`], [Preuves à examiner],
 )],
 caption: [#text(fill: green, [*entrées*]),  #text(fill: orange, [*sorties*]) de la minimales de la synthèse logique]
@@ -732,8 +714,9 @@ On ne va pas revenir sur ce que sont les fichiers `.sv` et `.f` mais voici une r
 
 === Fichier SDC (Synopsys Design Constraint)
 Le fichier qui va définir les contraintes de timing à respecter pour notre design. 
-Voici par exemple le fichier de contraintes de l'exemple 02 -  _adder_pipeline_ :
+Voici par exemple le fichier de contraintes de l'_adder_pipeline_ :
 
+#TODO("A modifier avec le vrai")
 #codly(footer: [*constraints.sdc*], breakable: true, )
 ```tcl
 set PERIOD_NS 2.000
@@ -766,7 +749,9 @@ Ce sont les fichiers du PDK qui définissent les caractéristiques des cellules 
 #TODO("A améliorer")
 
 == Niveau 1 : Commande et Tcl minimal
-#TODO("A unifier ave la partie 1")
+#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/02_synthesis/01_typical_minimal/])
+
+=== L'appel direct $->$ mauvaise idée
 Comme il y a beaucoup d'étapes à effectuer lors de la synthèse, un appel direct à l'outil n'est pas recommandé. Un exemple d'appel direct à genus pourrait être : 
 
 ```bash
@@ -781,7 +766,7 @@ genus -no_gui \
      -execute "write_sdc > chemin/vers/adder_pipeline.mapped.sdc" \
      -log genus.log
 ```
-\* Note : L'appel direct à genus ne fonctionne pas en l'état (mauvais chemin etc.)
+\ *Note* : Ce code est donné à tire d'exemple. L'appel direct à genus ne fonctionne pas en l'état (mauvais chemin etc.)
 
 \
 *Explications de la commande :*
@@ -806,12 +791,79 @@ On retrouve les grandes étapes répertoriées dans la @tab_elements_synthese :
 
 \
 *Conclusion* : C'est une #rouge("mauvaise méthode"). 
-#align(center, [$arrow.b $])
+
+=== Script synthèse minimal
+
+
+Contrairement à la simulation, la synthèse nécessite un peu plus de scripts car genus a besoin d'être configuré pour conrrectement fonctionner. En effet, il y a davantage d'étapes : le lien avec le PDK, les différents fichiers `.f`, `.sdc` etc. et tout ceci nésessite des scripts pour être fait correctement et dans le bon ordre. 
+
+Le language de script qui va nous permettre de configurer genus est le `.tcl`. C'est dans ce fichier qu'on va renseigner ce que genus dois faire et dans quel ordre. Pour lancer genus en utilisant le fichier `.tcl` de configuration la commande minimale est :
+
+```bash
+genus -file flow/02_synthesis/01_typical_minimal/genus_minimal.tcl
+```
+
+On devrait avoir une sortie proche de : 
+```sh
+can't read "::env(TUTORIAL_ROOT)": no such element in array
+Encountered problems processing file: flow/02_synthesis/01_typical_minimal/genus_minimal.tcl
+```
+
+*Patatra* ! Genus ne reconnais pas les chemin des fichiers. C'est #text(fill: green, [*normal*]). Quand on regarde le script *run_syn_minimal.sh* on peut voir que l'appel a genus utilise des PATH avec des variables d'environnement : 
+#codly(highlights: (
+  (line: 2, start: 14, end: 27, fill:red),))
+```bash
+genus -no_gui \
+     -files "$TUTORIAL_ROOT/flow/02_synthesis/01_typical_minimal/genus_minimal.tcl" \
+     -log "$GENUS_RUN_DIR/genus"
+```
+
+Nous aurions pu définir les chemins en dur dans les scripts mais pour des raisons de répétabilité et modularité des scripts il est préférable d'utiliser des variables d'environnement génériques qu'on vient charger en fonction du DUT dont on veut faire la synthèse. Dans cet exemple, à la place de devoir remettre à jours le nom du DUT (source d'erreur et pénible à faire) à chaque fois qu'on change de dut on va utiliser un fichier externe : design.env (dans le répertoire dut car spécifique) qui va definir quelles variables et fichiers utiliser. Ainsi, quand on veut changer de dut, il nous suffit simplement de changer de design.env!
+
+
+
+#TODO("Mettre le code en annexe")
+
+La procédure typique est donc : 
+#align(center, [
+#rect(fill: green.lighten(95%), stroke: green, [1. Charger les variables d'environnement ex: ```bash
+source design.env
+```])
+
+$arrow.b$
+
+#rect(fill: blue.lighten(95%), stroke: blue, [2. Lancer genus avec le fichier de confif ex:```bash
+genus -file flox/02_synthese/01_minimal/genus_minimal.tcl
+```])
+
+$arrow.b$
+
+#rect(width: 482pt, fill: red.lighten(95%), stroke: red, [3. Ranger les sorties dans un dossier uique labélisé par exemple avec la commande `mv`])
+])
 
 \
-Contrairement à la simulation, la synthèse nécessite un peu plus de scripts. En effet, il y a davantage d'étapes : le lien avec le PDK, les différents fichiers `.f`, `.sdc` etc. et tout ceci nésessite des scripts pour être fait correctement. 
+C'est exactement ce que fait le script run_minimal.sh. Pour l'executer :
 
-Le language de script qui va nous permettre d'échanger avec genus est le `.tcl`. On va donc écrire un fichier permettant de configurer genus : 
+```bash
+bash ...
+```
+
+#showybox(
+  title: [*Méthode* :],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  Une action = une erreur en cas d'echec (sinon on se perd)
+]
+
+
+C'est le fichier de configuration renseigné à genus. Il utilise des fonctions définies dans helper.tcl pour réaliser chacune des étapes du flow. Afin de garantir que le flow est réutilisable dans d'autres contexte, les chemins spécifiques sont passés en paramètre dans des variables d'environnement.
+
+
 
 #showybox(
   title: [*Note* :],
@@ -822,7 +874,7 @@ Le language de script qui va nous permettre d'échanger avec genus est le `.tcl`
     footer-color: blue.lighten(80%)
   ),
 )[
-  Il faut bien avoir en tête que le fichier tcl n'est pas executé en tant que tel, c'est genus qui est executée et qui l'utilise comme fichier de configuration. Ainsi, le script ne peut pas charger des variables d'environnement globale et des chemins configurables. Il est alors d'usage, pour des question de répétabilité de charger ces chemins *en amont* dans un script `.sh`. Et les utiliser dans le script par la suite (ce qui est fait dans le niveau 2)
+  Il faut bien avoir en tête que le fichier tcl n'est pas executé en tant que tel, c'est genus qui est executée et qui l'utilise comme fichier de configuration. Ainsi, le script ne peut pas charger des variables d'environnement globale et des chemins configurables par lui même. C'est pourquoi il est nécessaire de les charger en amont dans un script `bash`.
 ]
 
 Le soucis c'est que le tcl ne peut pas charger des variables d'envirronnement globale. Afin de corretement faire le lien entre tous les fichiers d'entrée on défini un fichier d'environnement (.env) qui va nous permettre de dire ou est ou d'un coup.
@@ -842,7 +894,7 @@ source fichier.env
     footer-color: red.lighten(80%)
   ),
 )[
-  Si on fait `export PATH_CUSTOM=/le/chemin` dans un programme shell et qu'on l'exectute avec la commande *bash* la variable PATH_CUSTOM sera détruite à la fin de l'execution du programme. Si on veut pouvoir s'en servir par la suite il faut donc que ça reste et pour cela on utilise la commande *source*
+  Si on fait `export PATH_CUSTOM=/le/chemin` dans un programme shell et qu'on l'exectute avec la commande *bash* la variable PATH_CUSTOM sera détruite à la fin de l'execution du programme. Si on veut pouvoir s'en servir par la suite il faut donc que ça reste et pour cela on utilise la commande *source*.
 ]
 
 #showybox(
@@ -857,7 +909,99 @@ source fichier.env
   Il y a d'autres façon de faire que cette architecture
 ]
 
+
+=== Comprendre les rapports
+
+Une erreur avant elaborate concerne souvent les fichiers ou la syntaxe. Une référence non résolue après élaboration concerne la hiérarchie. Un timing mauvais après mapping concerne plutôt contraintes, architecture ou choix de cellules.
+
+Normalement, si les scripts sont bien faits, il n'y a pas besoin de regarder dans le détails les rapports car la moindre erreur sera remontée dans le script. Il est tout de même essentiel de bien comprendre ce qui se passe donc voici les sorties classiques:
+
+==== Fichier : final_status.rpt
+
+C'est la première chose à regarder. C'est le verdic final de la synthèse. Si on a quelque chose de ce type c'est que tout devrait être bon : 
+
+```sh
+GENUS_STATUS=PASS
+FLOW_EXECUTION_STATUS=FLOW_COMPLETED
+ARTIFACT_STATUS=PASS
+```
+==== Fichier : report_timing.rpt - le timing
+Comme son nom l'indique c'est dans ce fichier qu'on retrouve les informations relatives au timing. C'est ici que l'on voit si le timing respecte les contraintes définies dans le sdc. Concept essentiel à comprendre à cette étape : la *slack*. Elle est définie comme suit : $#rect(stroke: red,[ slack = t_requis - t_arrivee])$
+
+Une slack *négative* indique qu'on est en retard $->$ #rouge("violation des contraintes")
+
+\
+Autres vérifications à effectuer : 
+- *WNS* (Worst Negative Slack) = pire slack
+- *TNS* (Total Negative Slack) = somme des slacks négatifs
+- Les clocks et les unités sont celles attendues
+- Aucun chemin important n'est non contraint
+- Les ports reçoivent bien délais, transitions et charges
+- Les exceptions ciblent les objets voulus
+- Les violations de transition, capacitance et fanout sont *séparées* des violations de timing
+
+
+```bash
+grep -i "slack" reports/timing/report_timing_bc.rpt
+grep -i "slack" reports/timing/report_timing_tc.rpt
+grep -i "slack" reports/timing/report_timing_wc.rpt
+```
+
+BC : logique rapide   → meilleur setup
+TC : intermédiaire
+WC : logique lente    → setup le plus difficile
+
+Pour plus de détails : #TODO("Voir md ou typst")
+
+
+
+#showybox(
+  title: [#text(weight: "bold", fill: black, [GENUS PASS $!=$ Design fonctionnel] )],
+  frame: (
+    border-color: red,
+    title-color: red.lighten(30%),
+    body-color: red.lighten(95%),
+    footer-color: red.lighten(80%)
+  ),
+)[
+  Le code retour de l'outil, l'élaboration, les contraintes, le timing, les design rules et les exports sont des *contrôles distincts*, Ils permettent de savoir ou le flow à éventuellement planté. Un code de retour : #text(fill: green, [GENUS_STATUS=PASS]) signifie uniquement que toutes les commandes ont été exécutées et les fichiers attendus ont été générés.Cela ne signifie pas nécessairement que :
+  - le slack est positif
+  - On a une absence de warnings dans check_design
+  - On a une absence de warnings dans check_timing_intent
+  - Une bonne fermeture setup/hold
+  - On a un résultat signoff
+
+  Les #rouge("rapports doivent donc toujours être examinés"), même lorsque le wrapper affiche #text(fill: green, [TEST_PASS]).
+]
+
+==== Fichier : report_area.rpt et report_qor.rpt - Aire du design
+Rapport de la surface prise par notre circuit. Il faut notamment vérifier :
+- *Aire totale* : nombre de cellules + répartition combinatoire/séquentielle
+- *Cellules non mappées* : doit être à 0
+
+#showybox(
+  title: [*Note* :],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  Une aire plus petite *n'est pas automatiquement meilleure* si elle dégrade le timing ou la robustesse électrique. Si, toutefois, on souhaite optimiser l'aire au détriment par exemple du timing on peut le spécifier à genus avec des commande du type : 
+  ```tcl
+  set_db syn_goal {area 1.0 timing 0.8}  # effort 100% aire, 80% timing
+  set_db syn_timing_slack_margin 0.05   # Marge de 50ps sur le slack
+  ```
+Genus essayera de réduire l'aire, mais ne sacrifiera pas le timing au-delà de la marge définie par syn_timing_slack_margin
+
+]
+
+
+
+
 == Niveau 2 : script réutilisable "simple"
+#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/02_synthesis/02_typical_advanced/])
 
 Même si le script du niveau 2 est relativement simple il comporte des appels à plusieurs fichier et leurs rôle doit être correctement compris. Voici donc l'architecture des appels imbriqués à cette étape.
 
@@ -918,362 +1062,27 @@ caption: [Imbrication des appels des fonctions du niveau 2 de la synthèse]
 \
 Détaillons le rôle précis de chaque fichier : 
 
-=== Helper.tcl
+=== Qui fait quoi ?
+run_syn.sh:
+- trouve TUTORIAL_ROOT
+- source design.env
+- source conf_ihp130.env
+- choisit GENUS_SDC
+- crée GENUS_RUN_DIR
+- vérifie les fichiers
+- lance Genus
+
+Helper.tcl
 Dans le flow numérique, un certain nombre d'opérations seront executées dans *chacun des scripts tcl* comme le renvoie d'erreur, la vérification de l'envirronnement etc. Afin d'éviter de réécrire systématiquement ces fonctions, nous pouvons les définir dans un fichier spécifique qui sera appelé à chaque fois (ici : helper.tcl).
 
 \
 Le fichier helpers.tcl regroupe donc les utilitaires du flow. Ce fichier contient des procédures TCL pour gérer les erreurs, les logs, et les rapports. Il vérifie que toutes les variables d'environnement obligatoires sont définies avant de lancer le flow.Cela évite les erreurs cryptiques (ex: `Library not found` à cause d'une variable manquante).
 
-#codly(footer: [*helper.tcl*])
-```tcl
-# Utilitaires communs au flow Genus du tutoriel.
-#
-# Les statuts PASS enregistrés ici signifient uniquement que la commande de
-# l'étape s'est terminée sans erreur Tcl. Ils ne constituent jamais une preuve
-# de fermeture temporelle, de DRC/LVS ou de signoff.
+#TODO("Mettre helper et script genus dans annexe")
 
 
-### Vérification que l'enrionnement Cadence est bien chargé ###
-proc tutorial_require_env {name} {
-    if {![info exists ::env($name)] || [string trim $::env($name)] eq ""} {
-        error "variable d'environnement obligatoire absente: $name"
-    }
-    return $::env($name)
-}
-
-### SPECIFIQUE AU FLOW ###
-# Convertit une variable d'environnement (ex: GENUS_LIBERTY_TC="lib1:lib2") en une liste TCL utilisable ({lib1 lib2}).
-# Gère les espaces et les éléments vides.
-proc tutorial_env_list {name} {
-    set raw [tutorial_require_env $name]
-    set values [list]
-    foreach value [split $raw ":"] {
-        set value [string trim $value]
-        if {$value ne ""} {
-            lappend values $value
-        }
-    }
-    if {[llength $values] == 0} {
-        error "la liste $name est vide"
-    }
-    return $values
-}
-
-### Horodatage précis pour les logs (ex: 2026-08-03T14:30:00Z) ###
-proc tutorial_now_utc {} {
-    return [clock format [clock seconds] -gmt true -format {%Y-%m-%dT%H:%M:%SZ}]
-}
-
-### Nettoie les chaînes de caractères (ex: messages d'erreur avec des sauts de ligne) pour les rendre lisibles en une seule ligne. ###
-proc tutorial_one_line {value} {
-    regsub -all {[\r\n\t]+} $value { } value
-    return [string trim $value]
-}
-
-### Enregistre chaque étape du flow dans un fichier TSV (pour le suivi et le débogage) ###
-proc tutorial_record_stage {stage status {detail ""}} {
-    set status_file [tutorial_require_env GENUS_STAGE_STATUS]
-    set fh [open $status_file a]
-    puts $fh "[tutorial_one_line $stage]\t[tutorial_one_line $status]\t[tutorial_now_utc]\t[tutorial_one_line $detail]"
-    close $fh
-}
-
-
-### Encapsule une étape du flow avec :
-# Gestion d'erreur automatique.
-# Logging automatique (via tutorial_record_stage)
-
-proc tutorial_run_stage {stage body} {
-    set ::tutorial_current_stage $stage
-    tutorial_record_stage $stage RUNNING
-    set rc [catch {uplevel 1 $body} result options]
-    if {$rc != 0} {
-        tutorial_record_stage $stage FAIL $result
-        return -options $options $result
-    }
-    tutorial_record_stage $stage PASS
-    return $result
-}
-
-### Génère automatiquement un rapport (ex: report_timing.rpt) et gère les erreurs
-
-proc tutorial_report {path command} {
-    file mkdir [file dirname $path]
-    # Genus Ã©tend Tcl avec la redirection Â« commande > fichier Â».
-    if {[catch {uplevel #0 "$command > [list $path]"} result]} {
-        set fh [open $path w]
-        puts $fh "REPORT_STATUS=FAILED"
-        puts $fh "COMMAND=[tutorial_one_line $command]"
-        puts $fh "ERROR=[tutorial_one_line $result]"
-        close $fh
-        error "Ã©chec du rapport '$command': $result"
-    }
-}
-
-proc tutorial_write_key_values {path pairs} {
-    file mkdir [file dirname $path]
-    set fh [open $path w]
-    foreach {key value} $pairs {
-        puts $fh "$key=[tutorial_one_line $value]"
-    }
-    close $fh
-}
-
-proc tutorial_assert_nonempty {path} {
-    if {![file exists $path]} {
-        error "artefact absent: $path"
-    }
-    if {[file size $path] <= 0} {
-        error "artefact vide: $path"
-    }
-}
-
-proc tutorial_write_final_status {status detail} {
-    set run_dir [tutorial_require_env GENUS_RUN_DIR]
-    set mode [tutorial_require_env GENUS_MODE]
-    set path [file join $run_dir reports final_status.rpt]
-
-    if {$status eq "PASS"} {
-        set flow_status FLOW_COMPLETED
-        set artifact_status PASS
-    } else {
-        set flow_status FAILED
-        set artifact_status FAIL
-    }
-
-    tutorial_write_key_values $path [list \
-        GENUS_STATUS $status \
-        FLOW_EXECUTION_STATUS $flow_status \
-        ARTIFACT_STATUS $artifact_status \
-        TIMING_STATUS REVIEW_REQUIRED \
-        CHECK_DESIGN_STATUS REVIEW_REQUIRED \
-        VIEW_MODE $mode \
-        IMPLEMENTATION_STATUS IMPLEMENTATION_CANDIDATE \
-        SIGNOFF_STATUS NOT_SIGNOFF \
-        DETAIL $detail]
-}
-
-```
-#TODO("A voir comment on l'intègre")
-
-#codly(footer: [*genus_cadence.tcl*], breakable: true)
-```tcl
-set_db init_lib_search_path ../lib/
-set_db init_hdl_search_path ../rtl/
-read_libs slow_vdd1v0_basicCells.lib
-
-read_hdl counter.v
-elaborate
-read_sdc ../constraints/constraints_top.sdc
-
-set_db syn_generic_effort medium
-set_db syn_map_effort medium
-set_db syn_opt_effort medium
-
-syn_generic
-syn_map
-syn_opt
-
-#reports
-report_timing > reports/report_timing.rpt
-report_power  > reports/report_power.rpt
-report_area   > reports/report_area.rpt
-report_qor    > reports/report_qor.rpt
-
-
-
-#Outputs
-write_hdl > outputs/counter_netlist.v
-write_sdc > outputs/counter_sdc.sdc
-write_sdf -timescale ns -nonegchecks -recrem split -edges check_edge  -setuphold split > outputs/delays.sdf
-
-```
-
-
-=== Script tcl minimal 
-
-#TODO("changer le nom")
-
-#TODO("Une action = une erreur en cas d'echec (sinon on se perd) ")
-
-C'est le fichier de configuration renseigné à genus. Il utilise des fonctions définies dans helper.tcl pour réaliser chacune des étapes du flow. Afin de garantir que le flow est réutilisable dans d'autres contexte, les chemins spécifiques sont passés en paramètre dans des variables d'environnement.
-
-#codly(footer: [*genus_minimal.tcl*])
-```tcl
-# Synthèe Genus minimale en vue typique.
-# Le wrapper fournit les chemins par variables d'environnement.
-
-### récupération et chargement de helper.tcl dans le même répertoire ###
-set flow_dir [file dirname [file normalize [info script]]]
-source [file join $flow_dir helpers.tcl]
-
-proc tutorial_minimal_main {} {
-
-    # Initialisation des variables d'environnement a l'aide de la fonction définie dans le helper.tcl
-    set root       [tutorial_require_env TUTORIAL_ROOT]
-    set run_dir    [tutorial_require_env GENUS_RUN_DIR]
-    set top        [tutorial_require_env GENUS_TOP_MODULE]
-    set filelist   [tutorial_require_env GENUS_FILELIST]
-    set sdc        [tutorial_require_env GENUS_SDC]
-    set report_dir [file join $run_dir reports]
-    set output_dir [file join $run_dir outputs]
-
-    file mkdir $report_dir
-    file mkdir $output_dir
-
-    ###### Configuration de Genus ######
-    # Utilisation de SystemVerilog
-    set_db hdl_language sv
-    # Définit les librairies à utiliser pour la synthèse
-    set_db library [tutorial_env_list GENUS_LIBERTY_TC]
-    # Ajoute $root (défini plus haut) au chemin de recherche des fichiers HDL
-    set_db init_hdl_search_path [list $root]
-    cd $root
-
-    ###### Etapes du flow ######
-    # Note : Chaque étape est encapsulée dans tutorial_run_stage pour :
-    # - Gérer les erreurs.
-    # - Enregistrer le statut (RUNNING/PASS/FAIL).
-    # - Générer des rapports.
-
-    # Lecture des fichiers RTL depuis $filelist
-    tutorial_run_stage read_rtl {
-        read_hdl -sv -f $filelist
-    }
-
-    #Élaboration
-    tutorial_run_stage elaborate {
-        elaborate $top
-    }
-
-    # Charge le fichier SDC
-    tutorial_run_stage read_constraints {
-        read_sdc $sdc
-    }
-
-    #Vérifie la structure du design (pas de latches, pas de boucles combinatoires) et les contraintes SDC
-    tutorial_run_stage checks {
-        tutorial_report [file join $report_dir check_design.rpt] \
-            {check_design -all}
-        tutorial_report [file join $report_dir check_timing_intent.rpt] \
-            {check_timing_intent -verbose}
-    }
-
-    # Synthèse logique : RTL vers Netlist (optimisation incluse).
-    tutorial_run_stage synthesis {
-        syn_generic
-        syn_map
-        syn_opt
-    }
-    
-    # Génère des rapports de timing, d'aire, et de qualité des résultats (QOR).
-    tutorial_run_stage reports {
-        tutorial_report [file join $report_dir report_timing.rpt] \
-            {report_timing -max_paths 20}
-        tutorial_report [file join $report_dir report_area.rpt] \
-            {report_area}
-        tutorial_report [file join $report_dir report_qor.rpt] \
-            {report_qor}
-    }
-
-
-    #### Export final des Résultats #####
-    set mapped_v   [file join $output_dir ${top}.mapped.v]
-    set mapped_sdc [file join $output_dir ${top}.mapped.sdc]
-    tutorial_run_stage export {
-        write_hdl > $mapped_v
-        write_sdc > $mapped_sdc
-        tutorial_assert_nonempty $mapped_v
-        tutorial_assert_nonempty $mapped_sdc
-    }
-
-    tutorial_write_final_status PASS \
-        "niveau basic terminÃ©; netlist et SDC disponibles"
-    tutorial_record_stage final_status PASS
-}
-
-set rc [catch {tutorial_minimal_main} message options]
-if {$rc != 0} {
-    catch {tutorial_write_final_status FAIL [tutorial_one_line $message]}
-    puts stderr "GENUS_TUTORIAL_ERROR: $message"
-    if {[dict exists $options -errorinfo]} {
-        puts stderr [dict get $options -errorinfo]
-    }
-    exit 20
-}
-
-puts "GENUS_TUTORIAL_STATUS: BASIC_FLOW_COMPLETED"
-exit 0
-```
-
-
-== Comprendre les rapports
-
-Une erreur avant elaborate concerne souvent les fichiers ou la syntaxe. Une référence non résolue après élaboration concerne la hiérarchie. Un timing mauvais après mapping concerne plutôt contraintes, architecture ou choix de cellules.
-
-Normalement, si les scripts sont bien faits, il n'y a pas besoin de regarder dans le détails les rapports car la moindre erreur sera remontée dans le script. Il est tout de même essentiel de bien comprendre ce qui se passe donc voici les sorties classiques:
-
-=== Fichier : final_status.rpt
-
-C'est la première chose à regarder. C'est le verdic final de la synthèse. Si on a quelque chose de ce type c'est que tout devrait être bon : 
-
-```sh
-GENUS_STATUS=PASS
-FLOW_EXECUTION_STATUS=FLOW_COMPLETED
-ARTIFACT_STATUS=PASS
-```
-=== Fichier : report_timing.rpt - le timing
-Comme son nom l'indique c'est dans ce fichier qu'on retrouve les informations relatives au timing. C'est ici que l'on voit si le timing respecte les contraintes définies dans le sdc. Concept essentiel à comprendre à cette étape : la *slack*. Elle est définie comme suit : $#rect(stroke: red,[ slack = t_requis - t_arrivee])$
-
-Une slack *négative* indique qu'on est en retard $->$ #rouge("violation des contraintes")
-
-\
-Autres vérifications à effectuer : 
-- *WNS* (Worst Negative Slack) = pire slack
-- *TNS* (Total Negative Slack) = somme des slacks négatifs
-- Les clocks et les unités sont celles attendues
-- Aucun chemin important n'est non contraint
-- Les ports reçoivent bien délais, transitions et charges
-- Les exceptions ciblent les objets voulus
-- Les violations de transition, capacitance et fanout sont *séparées* des violations de timing
-
-#showybox(
-  title: [#text(weight: "bold", fill: black, [Verdict correct] )],
-  frame: (
-    border-color: red,
-    title-color: red.lighten(30%),
-    body-color: red.lighten(95%),
-    footer-color: red.lighten(80%)
-  ),
-)[
-  Le code retour de l'outil, l'élaboration, les contraintes, le timing, les design rules et les exports sont des *contrôles distincts*, Il ne faut donc *pas* les résumer par un seul message « terminé ».
-]
-
-=== Fichier : report_area.rpt et report_qor.rpt - Aire du design
-Rapport de la surface prise par notre circuit. Il faut notamment vérifier :
-- *Aire totale* : nombre de cellules + répartition combinatoire/séquentielle
-- *Cellules non mappées* : doit être à 0
-
-#showybox(
-  title: [*Note* :],
-  frame: (
-    border-color: blue,
-    title-color: blue.lighten(30%),
-    body-color: blue.lighten(95%),
-    footer-color: blue.lighten(80%)
-  ),
-)[
-  Une aire plus petite *n'est pas automatiquement meilleure* si elle dégrade le timing ou la robustesse électrique. Si, toutefois, on souhaite optimiser l'aire au détriment par exemple du timing on peut le spécifier à genus avec des commande du type : 
-  ```tcl
-  set_db syn_goal {area 1.0 timing 0.8}  # effort 100% aire, 80% timing
-  set_db syn_timing_slack_margin 0.05   # Marge de 50ps sur le slack
-  ```
-Genus essayera de réduire l'aire, mais ne sacrifiera pas le timing au-delà de la marge définie par syn_timing_slack_margin
-
-]
-
-== Wrapper réutilisable
-
+== Niveau 3 : Script complet avec mmmc
+#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/02_synthesis/03_mmmc/])
 *Fichier* : `run_genus.sh`
 
 ---
