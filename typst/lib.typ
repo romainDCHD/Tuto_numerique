@@ -178,7 +178,10 @@
   deixis-set-pin-pattern(
   prefix: "aaaa",
   postfix: "bbbb",
-)
+  )
+
+  // Bullet list 
+  set list(marker: ([•], [--]))
   /////// FIN REGLES GENERALES /////////
 
   /////// Title page ///////

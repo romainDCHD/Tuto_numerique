@@ -4,6 +4,7 @@
   title: "Prise en main du flow numérique ASIC",
   authors: (
     ("Romain DUCHADEAU", "IP2I / CNRS", "r.duchadeau@ip2i.in2p3.fr"),
+    // ("Sabra KARIM", "IP2I / CNRS", "k.sabra@ip2i.in2p3.fr"),
   ),
   logos: ("Img/logo_CNRS.jpg", "Img/logo_IP2I.png"), //ex : "Img/logo_CNRS.jpg"
   lang: "fr",
@@ -101,21 +102,10 @@ $arrow.b$
 \
 *\** Il existe d'autres outils que ceux cités mais ils ne seront pas évoqués dans ce tutoriel. La démarche restant exactement la même d'un outil à l'autre, il faudra simplement réadapter les scripts en cas de changement d'outil.
 
+Pour illustrer les notions vues dans ce tutoriel, nous allons passer ensemble le flow numérique complet (du rtl jusqu'au layout) sur un bloc d'additionneur pipeliné appelé "adder_pipeline" 
 
-
-== Objectif
-
-Pour illustrer les notions vues dans ce tutoriel, nous allons passer ensemble le flow numérique complet (du rtl jusqu'au layout) sur un bloc simple : un additionneur ripple carry 4 bits. 
-
-L'objectif de ce bloc est de faire une simple addition de 4 bits entre deux front d'horloge. Pourquoi les front d'horloge ? Car ceci permet de prendre en main une structure essentielle du flow numérique : un bloc combinatoire (on parle de bloc *combinatoire* quand des opérations sont faites et qu'il n'y a aucune horloge) entre deux *flip flop* (#underline("ie.") bascules) qui font entrer les données sur un front d'horloge et lisent le résultat au front suivant comme illustré sur la @fig-03_circuit_comb:
-
-#v(0.5cm)
-#figure(
-  image("Img/03_circuit_comb.png", width: 80%),
-  caption: [Schema de principe du circuit ],
-)<fig-03_circuit_comb>#v(0.5cm)
-
-Ce circuit permet, sans rajouter beaucoup de complexité, d'étudier des problématiques temporelles comme la latence, setup, hold, MMMC, CTS etc...
+== Pourquoi l'exemple _adder_pipeline_
+Un des blocs les plus simples en microélectronique numérique est le full adder. Il possède huit combinaisons et aucune horloge (on parle alors de bloc purement *combinatoire*) ce qui en fait un bon candidate pour commencer. Cependant, comme il ne possède pas d'horloge, nous passerions à côté de beaucoup de notions importantes (le timing et l'horloge étant souvent le point critique d'un circuit numérique). C'est pourquoi nous allons plutôt dérouler le flow sur un bloc d'additionneur pipeliné qui ajoute des registres, une clock, un reset et un signal de validité. Il permet, sans rajouter beaucoup de complexité, d'étudier des problématiques temporelles comme la latence, setup, hold, MMMC, CTS etc...
 
 
 #v(0.5cm)
@@ -128,7 +118,7 @@ Ce circuit permet, sans rajouter beaucoup de complexité, d'étudier des problé
     footer-color: blue.lighten(80%)
   ),
 )[
-  Quand on fait quelque chose de nouveau (a fortiori en microélectronique numérique) la règle d'or est toujours de commencer simple et petit. Commencer petit permet de distinguer une erreur de *méthode* en s'affranchissant des difficultés réelles du design.
+  Quand on fait quelque chose de nouveau (surtout en microélectronique numérique) la règle d'or est toujours de commencer simple et petit. Commencer petit permet de distinguer une erreur de *méthode* en s'affranchissant des difficultés réelles du design.
 ]
 
 
@@ -193,10 +183,10 @@ Ces scripts sont pensés pour être *réutilisables* dans d'autres contextes que
   En microélectronique numérique il est nécessaire d'être *très au clair* avec l’arborescence des fichiers et des dossier. Il est important de définir *dès le départ* une structure claire. 
 
   \
-  Pour des raisons de répétabilité et de modularité, les scripts ne seront jamais écrits avec des PATH en dur mais seront toujours écrits en utilisant des PATH *absolus* chargés à partir de fichiers spécifiques. 
+  Pour des raisons de répétabilité, les scripts ne seront jamais écrits avec des PATH relatifs mais seront toujours écrits en utilisant des PATH *absolus* chargés à partir de fichiers spécifiques. 
 
   \
-  La logique ici est que tous les fichiers spécifiques au dut soient dans le dossier _dut_ tandis que les scripts dans _flow_ sont *génériques* et utilisent des PATH ou variables définies dans _config_ et _dut_.
+  La logique ici est que tous les fichiers spécifiques au dut soient dans le dossier _dut_ tandis que les scripts dans _flow_ sont *génériques* et utilisent des PATH ou variables définies dans _confi_ et _dut_.
 ]
 
 == Approche pédagogique : méthode en plusieurs niveaux d'abstraction
@@ -228,7 +218,7 @@ Chaque chapitre montre d'abord:
 
 Tout au long du tutoriel, on considère que l'environnement Cadence est chargé et que les commandes de lancement des outils `xrun, genus, innovus` sont chargées 
 
-#rouge("Disclimer 2 : ")La microélectronique numérique est une discipline qui fourmille de détails et de cas particuliers. On pourrait écrire 300 pages d'explications simplement sur la synthèse. Ce n'est pas l'objectif ici. Ce tutoriel permet de voir *en surface* les étapes du flow numériques. Il permet de comprendre comment les choses s'imbriquent entre elles et il constitue un bon point de départ pour comprendre le flow numérique dans sa globalité mais il *n'est pas suffisant* pour former un bon numéricien. Il est nécessaire par la suite d'approfondir les notions.
+
 
 
 // ******************** SECTION ******************** 
@@ -274,7 +264,7 @@ Voici les entrées sorties attendues pour cette phase de simulation :
   ),
   [RTL], [`full_adder_comb.sv`], [Description logique synthétisable],
   [Filelist], [`rtl.f`], [Ordre et chemins des sources],
-  [Rapport], [`.sh` ou `.log`], [Rapport de sortie de la simulation (balises PASS ou FAIL)],
+  [Rapport], [`.sh`], [Rapport de sortie de la simulation (balises PASS ou FAIL)],
 )],
 caption: [Entrées sorties de la phase de simulation (#text(fill: green, [*entrées*]),  #text(fill: orange, [*sorties*]))]
 )<tab_elements_simu>
@@ -285,7 +275,7 @@ On peut noter qu'il n'y a pas de sortie à proprement parler pour la simulation 
 // -------------------  SOUS - SECTION ------------------- 
 ==  Niveau 1 : Commande Xcelium minimale
 Dans ce niveau, nous nous intéressons au module full_adder_comb.
-Module très simple et purement combinatoire (sans clock). La première étape consiste à savoir ce qu'on veut que le module fasse. Cette étape passe souvent par écrire une *machine à état* ou une *table de vérité* pour être au clair sur les fonctions *précises* du module. 
+Module très simple et purement combinatoire (sans clock). La première étape consiste à savoir ce qu'on veut que le module fasse. Cette étape passe souvent par écrire une machine à état ou une table de vérité pour être au clair sur les fonctions *précises* du module. 
 === Définition du contrat logique
 
 
@@ -317,7 +307,7 @@ caption:[Table de vérité du full adder combinatoire]
 )<tab_full_adder_comb>
 
 === RTL du full adder et de son testbench
-*Deuxième étape* : on écrit le comportement du module en RTL (verilog, systemverilog ou vhdl). Ici, cela donne :
+Deuxième étape : on écrit le comportement du module en RTL (verilog, systemverilog ou vhdl). Ici, cela donne :
 #codly(footer: [*full_adder_comb.sv*], breakable: false)
 #deixis-attach(
 ```sv
@@ -384,7 +374,7 @@ endmodule
 ]
 
 \* Les deux valeurs correspondent à:
-- 1ns  = unité de temps (si on met un délais de "#10" dans le module cela signifiera alors 10 *x 1ns*)
+- 1ns  = unité de temps (si on met un délais de "#10" dans le module cela signifiera alors 10 *ns*)
 - 1ps  = précision temporelle / pas du simulateur (le simulateur peut distinguer les événements avec une résolution de 1 ps)
 
 
@@ -392,7 +382,7 @@ endmodule
 
 // -------------------  SOUS - SECTION -------------------
 === Testbench du full adder comb
-De la même manière que un module, un testbench est aussi un module RTL qui comprend le module a tester ainsi que les entrée sorties commandées permettant de faire le test (exactement comme en analogique). Le rôle du testbench est également de faire ressortir des *marqueurs* (#text(fill: green,weight: "bold" ,[PASS]) ou #rouge[FAIL]) pour vérifier le bon fonctionnement comportemental de note module / DUT. 
+De la même manière que un module, un testbench est aussi un module RTL qui comprend le module a tester ainsi que les entrée sorties commandées permettant de faire le test (exactement comme en analogique). Le rôle du testbench est également de faire ressortir des #rouge("marqueurs") pour vérifier le bon fonctionnement comportemental de note module / DUT. 
 
 
 #showybox(
@@ -404,55 +394,62 @@ De la même manière que un module, un testbench est aussi un module RTL qui com
     footer-color: blue.lighten(80%)
   ),
 )[
-  Pour des raisons de lisibilité, les codes abordés dans ce tutoriel se situent en annexe de ce document.
+  Pour des raisons de lisibilité, les codes abordés dans ce tuto se situent en annexe de ce document.
 ]
 
+#showybox(
+  title: [#text(weight: "bold", fill: black, [À retenir :] )],
+  frame: (
+    border-color: red,
+    title-color: red.lighten(30%),
+    body-color: red.lighten(95%),
+    footer-color: red.lighten(80%)
+  ),
+)[
+  Un testbench automatisable doit terminer avec `$fatal` en cas d'erreur et imprimer un marqueur final exact uniquement lorsque tous les tests passent. Il ne #rouge("suffit pas") de print PASS ou FAIL pour que ça fonctionne, il faut un réel #rouge("marqueur") `$fatal` pour être certain que le code *plante* et fasse ressortir une erreur nous empêchant de continuer si il y a une erreur dans le fonctionnement.
+  Un exemple de code de retour peut être :
+  ```sv
+  $fatal(1,
+    "\033[31m[ERREUR]\033[0m : Echec vecteur %03b : obtenu cout,sum=%b%b, attendu=%b%b",
+    {a_i, b_i, cin_i}, cout_o, sum_o,
+    cout_attendue, sum_attendue);
+    ```
+
+  On notera la balise `\033[31m[ERREUR]\033[0m ` qui permet d'écrire en rouge dans le terminal pour des questions de lisibilité et la balise `\033[32m[TEST_PASS]\033[0m` qui permet d'écrire en vert.
+]
 
 
 === La simulation - Niveau 1 : commande minimale 
-Une fois le RTL du full adder et de son testbench écrits (et qu'on a donc une description comportementale de nos modules), il faut effectuer la simulation. Pour ce faire on execute (après avoir chargé Cadence et les outils) *depuis la racine du tutoriel*:
+Une fois le RTL du full adder et de son testbench écrits (et qu'on a donc une description comportementale de nos modules), il faut effectuer la simulation. Pour ce faire on execute (après avoir chargé Cadence et les outils) :
 
 
-#codly(stroke: 1pt + red)
 ```bash
-xrun -64bit -sv -timescale 1ns/1ps \
+xrun -64bit -timescale 1ns/1ps \
    dut/rtl/full_adder_comb.sv \
-   dut/rtl/tb_full_adder_comb.sv \
+   dut/tb/tb_full_adder_comb.sv \
    -top tb_full_adder_comb
 ```
-#codly(stroke: 1pt + gray)
 
 \
 * Explication de la commande* : 
-- *`-64bit`* : Utilise l'exécutable 64 bits.
-- *`-sv`* : Active SystemVerilog (normalement on peut s'en passer car Xcellium est sensé reconnaître l'extension .sv mais cf note plus bas).
-- *`-timescale`* : Fixe l'unité et la précision par défaut si un module n'a rien de spécifié (sinon utilisation du timescale du module).
-- *`*.sv`* : Module ou sous module a simuler.
-- *`-top`* : Choisit le top élaboré (#underline("ie.") le module le plus haut dans la hiérarchie).
+- `-64bit` utilise l'exécutable 64 bits.
+- `-sv` active SystemVerilog.
+- `-timescale` fixe l'unité et la précision par défaut si un module n'a rien de spécifié (sinon utilisation du timescale du module).
+- `-f` lit une filelist.
+- `-top` choisit le top élaboré.
+
+*Autres options utiles* :
+- `-access +rwc` donne les droits de prober tous les signaux dans la hiérarchie du design.
+- `-gui` ouvre la vue graphique
 
 \
-#showybox(
-  title: "Note : Spécifications de commandes",
-  frame: (
-    border-color: blue,
-    title-color: blue.lighten(30%),
-    body-color: blue.lighten(95%),
-    footer-color: blue.lighten(80%)
-  ),
-)[
-  En règle générale, il vaut mieux éviter de penser que "l'outil va comprendre tout seul". Effectivement, certaines choses sont prisent en compte automatiquement et on a vite fait de se dire qu'on ne va pas rajouter l'option "x" car ça alourdi inutilement. C'est #rouge[une erreur]. Plus on spécifie de chose, plus on est certain que ça fait ce qu'on veut. Cette approche évite de chercher (longtemps) une erreur bête alors que c'est simplement un problème d'appel mal compris pas l'outil (valable pour tous les outils du flow).
-]
-
-
-On s'attend a voir dans la sortie quelque chose comme:
+On s'attend a voir dans la sortie:
 ```sh
 xcelium> run
 TEST_PASS: full_adder_comb
 ```
 
-\ *Super, notre module est fonctionnel !* 
-
-On peut voir en tapant *`"ls"`* que trois choses sont apparues :
+On peut voir en tapant `ls` que trois choses sont apparues :
 - *Dossier xcelium.d* :	Base de compilation et d'élaboration de Xcelium. Elle contient notamment le snapshot simulable et les données internes utilisées par Xrun.
 - *xrun.log*	: Journal texte de la compilation, de l'élaboration et de la simulation.
 - *xrun.history* :	Historique interne des invocations Xrun, utilisé par les fonctions d'historique et de rejeu de commandes.
@@ -465,7 +462,7 @@ $->$ Le full adder purement combinatoire fonctionne. On va pouvoir l'utiliser da
 
 
 #showybox(
-  title: "Note : Architecture de fichier",
+  title: "Note :",
   frame: (
     border-color: blue,
     title-color: blue.lighten(30%),
@@ -473,25 +470,15 @@ $->$ Le full adder purement combinatoire fonctionne. On va pouvoir l'utiliser da
     footer-color: blue.lighten(80%)
   ),
 )[
-  Il est important de bien avoir en tête d'où on lance le script et donc d'où partent les chemins relatifs!!! Chaque designer a son architecture de fichier et ses habitudes. La méthode ici consiste à toujours lancer la commande depuis la *racine du projet* et a adapter les chemins relatif à ce point de départ plutôt que l'inverse.
+  Il est important de bien avoir en tête d'où on lance le script et donc d'où partent les chemins relatifs!!! Une méthode sûre consiste à toujours lancer la commande depuis la racine du projet et a adapter les chemins relatif à ce point de départ plutôt que l'inverse.
 ]
 
 // -------------------  SOUS - SECTION ------------------- 
 == Niveau 2 : Utiliser les filelists
-Pour ce niveau et #rouge("dans toute la suite du tutoriel"), nous nous intéresserons au module ripple_carry_4. Autrement dit, a partir de maintenant nous laissons de côté la sous-brique full_adder_comb pour ne s'intéresser qu'au ripple_carry_4.
+Pour ce niveau et #rouge("dans toute la suite du tutoriel"), nous nous intéresserons au module adder_pipeline. Autrement dit, a partir de maintenant nous laissons de côté la sous-brique full_adder_comb pour ne s'intéresser qu'à l'adder_pipeline
 
-=== Contrat logique du ripple carry 
-Dans un premier temps, il est important de comprendre ce que fait notre module:
 
-#v(0.5cm)
-#figure(
-  image("Img/04_ripple_carry_contrat_logique.png", width: 100%),
-  caption: [Contrat logique du ripple_carry_4 [généré pas ChatGPT]],
-)<fig-04_ripple_carry_contrat_logique>#v(0.5cm)
-
-=== Les filelists
-
-Comme nous pouvons le voir sur la @fig-04_ripple_carry_contrat_logique, le module ripple_carry_4 contient le sous-module full_adder_comb (en plusieurs instances). Pour la simulation, on peut executer xrun individuellement pour chaque DUT et chaque testbench (comme avec le niveau 1) mais une bonne pratique si on a beaucoup de fichiers RTL est d'utiliser une filelist (extension en $#rect(fill: colors.code-bg, [.f])$) pour définir *dans quel ordre* procéder à l'élaboration et qu'on ai pas de problèmes de dépendances non résolues à cause d'un mauvais ordre. Par ailleurs, ces filelists seront #rouge("nécessaires pour les étapes suivantes") donc autant les implémenter dès maintenant.
+Le module adder_pipeline contient le sous-module full_adder_comb. Pour la simulation on peut executer xrun individuellement pour chaque DUT et chaque testbench (comme avec le niveau 1) mais une bonne pratique si on a beaucoup de fichiers RTL est d'utiliser une filelist (extension en $#rect(fill: colors.code-bg, [.f])$) pour définir *dans quel ordre* procéder à l'élaboration et qu'on ai pas de problèmes de dépendances non résolues à cause d'un mauvais ordre. Par ailleurs, ces filelists seront #rouge("nécessaires pour les étapes suivantes") donc autant les implémenter dès maintenant.
 
 
 #showybox(
@@ -506,55 +493,100 @@ frame: (
   Il est #rouge("primordial") de séparer les .f des modules DUT (dans le dossier *rtl*) et des testbench en deux fichiers distincts. En effet, les filelists rtl.f seront *réutilisées* par la suite dans les phases de synthèse et de pnr et ne servent pas seulement pour la simulation.
 ]
 
-Voici, ar exemple, ce que contient la filelist rtl.f : 
+Voici ce que contient la filelist rtl.f : 
 
 #codly(footer: [*rtl.f*], breakable: false)
 ```txt
 dut/rtl/full_adder_comb.sv
-dut/rtl/ripple_carry_4.sv
+dut/rtl/adder_pipeline.sv
 ```
-C'est simplement une liste de tous les modules à élaborer et simuler.
+Pour le testbench: 
+
+#codly(footer: [*tb.f*], breakable: false)
+```txt
+dut/tb/tb_adder_pipeline.sv
+```
+
 Une fois les filelists écrites on peut lancer (depuis la racine du dossier toujours):
 
 #codly(stroke: 1pt + red)
 ```bash
-xrun -64bit \
-  -sv  \
-  -access +rwc \
-  -gui \
-  -timescale 1ns/1ps \
+xrun -64bit -sv -timescale 1ns/1ps \
   -f dut/filelists/rtl.f \
   -f dut/filelists/tb.f \
-  -top tb_ripple_carry_4
+  -top tb_adder_pipeline \
+```
+#codly(stroke: 1pt + gray)
+\
+* Explication de la commande* : Ajout de `-f` pour lui dire de lire une filelist et pas un fichier .sv
+
+\
+La sortie devrait être identique qu'avec la commande minimale précédente.
+
+De la même manière, Xcelium va mettre ses fichiers dans le répertoire d'execution, si il n'y a pas d'erreurs, nous n'en avons plus besoin: 
+```bash
+rm -rf x*
+```
+
+== Niveau 3 : Wrapper réutilisable
+Comme déjà mensionné auparavent, en pratique, on ne va pas lancer cette commande à la main car on ne sait pas vraiment ou Xcelium stocke ses fichiers de simu, les logs, les résulats etc... Dans un flow numérique tout peut être une source d'erreur et stipuler explicitement ou vont chaque fichier peut faire gagner enormément de temps et permet d'être correctement organisé. C'est pourquoi on va privilégier l'utilisation d'un wrapper qui va tout automatiser pour nous.
+
+
+Le wrapper suivant crée un dossier de résultat unique, isole la bibliothèque Xcelium, conserve le code retour et vérifie le marqueur final.
+
+#TODO("mettre le script en annexe")
+
+Pour lancer le script : 
+
+#codly(stroke: 1pt + red)
+```bash
+bash flow/01_simulation/run_sim.sh adder_pipeline 
 ```
 #codly(stroke: 1pt + gray)
 
-* Explication de la commande* :
-- *`-access +rwc`* : Donne les droits de prober tous les signaux dans la hiérarchie du design.
-- *`-gui`* : Ouvre la vue graphique
-- *`-f`* ; Lit une filelist.
+Avec l'interface graphique : 
 
-
-=== Utilisr la vue graphique
-Cette fois, avec l'option *`-gui`*, la vue graphique s'ouvre et on peut visualiser les résultats de simulation:
-
-#v(0.5cm)
-#figure(
-  image("Img/05_xcelium_1.png", width: 60%),
-  caption: [Simvision fenêtre 1],
-)<fig-05_xcelium_1>#v(0.5cm)
-
- Après ouverture de la waveform cette fenêtre apparait:
-
-#v(0.5cm)
-#figure(
-  image("Img/05_xcelium_2.png", width: 90%),
-  caption: [Simvision fenêtre 1],
-)<fig-05_xcelium_2>#v(0.5cm)
-
-Si d'aventure nous avions des problèmes de simulation, cette vue graphique est un outils essentiel pour comprendre pourquoi tel ou tel signaux n'est pas dans l'état attendu.
+```bash
+bash flow/01_simulation/run_sim.sh adder_pipeline --gui
+```
 
 \
+*Fonctionnalités clés du script :*
+- Utilise l'argument pour savoir quel module simuler (ici l'adder_pipeline). Si on veut simuler un autre module il suffira de l'intégrer au code _run_sim.sh_ de la même manière que l'adder_pipeline. Procéder ainsi permet d'éviter de s'emmêler entre les paths, d'avoir des arguments à ralonge ect... Donc, on rajoute les bons paths dans le code et on appelle simplement le bon module avec un mot clé.
+- Crée un répertoire de run propre dans : rundir/01_simulation/adder_pipeline/
+- Si existant, supprime le contenu du run précédent afin d'éviter l'utilisation d'anciens résultats par exemple.
+- Crée une base de formes d'onde SHM consultables par SimVision dans: waves.shm/ et y enregistre les signaux du testbench et des sous-modules.
+- Redirige les fichiers générés par Xcelium vers le répertoire du run.
+- Récupère le code de retour de Xrun pour détecter si c'est une erreur de compilation, d'élaboration ou de simulation.
+
+\
+Une fois la simulation terminée, on va pouvoir retrouver les coubes simulées à l'aide de la commande:
+
+```bash
+simvision waves.shm
+```
+
+
+\
+#showybox(
+  title: "Note : Modularité et simplicité",
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  Le script est pensé pour être modulable et réutilisable dans d'autres contextes avec d'autres DUT. Le script est volontairement gardé simple pour des raisons de lisibilité mais on peut bien entendu l'améliorer. Voici quelques points d'amélioration possible :
+  #rect(fill: white, radius: 5pt,[
+    - Seul le design adder_pipeline est accepté.
+  - Le run précédent est supprimé à chaque lancement.
+  - Le script ne conserve pas encore plusieurs simulations datées.
+  - Les options Xrun sont fixées dans le script.
+  - Il n'exécute pas encore une liste de tests ou une régression complète.
+  ])  
+]
+
 #showybox(
   title: "Note : Interface graphique",
   frame: (
@@ -567,104 +599,8 @@ Si d'aventure nous avions des problèmes de simulation, cette vue graphique est 
   La philosophie c'est sans interface sauf si bug.
 ]
 
-=== Ouverture de simulations précédentes
-On peut remarquer que cette fois, en plus de ce que xcellium à généré au niveau 1, on a un dossier *`waves.shm`* qui s'est créé. Ce dossier contient toutes les wavesformes (les signaux temporels) qui ont été créés. C'est en réalité ces signaux qu'on a affichés en @fig-05_xcelium_2 et il est possible de les visualiser après coup en tappant : 
-```bash
-simvision waves.shm
-```
-Une fenêtre va s'ouvrir et il est alors possible de consulter les signaux. Une autre chose intéressante à consulter est la *netlist générée*. La consulter permet de vérifier que ce que nous avions en tête est bien conforme à ce qui va être synthétisé par la suite. Pour l'ouvrir :  
-
-#v(0.5cm)
-#figure(
-  image("Img/06_1_simvision_setup.png", width: 40%),
-  caption: [Simvision : ouverture de la netlist],
-)<fig-06_1_simvision_setup>#v(0.5cm)
-
-Puis une fenêtre s'ouvre et en double-clickant sur les modules on peut rentrer dedans. On peut alors visionner nos différents modules : 
-#v(0.5cm)
-#figure(
-  image("Img/06_2_simvision_tb.png", width: 100%),
-  caption: [Simvision : Module du tesbench],
-)<fig-06_2_simvision_tb>#v(0.5cm)
-
-La @fig-06_2_simvision_tb illustre bien le fait que notre testbench est un module qui *encapsule le dut* et qui comprend d'autres modules pour gérer les entrées et sorties attendues. On peut rentrer dans le dut et cela donne : 
-#v(0.5cm)
-#figure(
-  image("Img/06_3_simvision_ripple_carry.png", width: 100%),
-  caption: [Simvision : Module ripple_carry],
-)<fig-06_3_simvision_ripple_carry>#v(0.5cm)
-
-Sur la @fig-06_3_simvision_ripple_carry on voit bien les full adder combinatoires (en #rouge[rouge]) dont les entrées/sorties sont clockées par des bascules D (en #text(fill: purple, weight: "bold", "violet")).
-Enfin, on peut également visualiser l'intérieur de nos full adder composés de portes logiques: 
-#v(0.5cm)
-#figure(
-  image("Img/06_4_simvision_adder.png", width: 100%),
-  caption: [Simvision : Module full adder],
-)<fig-06_4_simvision_adder>#v(0.5cm)
-\
-De la même manière, Xcelium va mettre ses fichiers dans le répertoire d'execution, si il n'y a pas d'erreurs, nous n'en avons plus besoin: 
-```bash
-rm -rf x* waves.shm
-```
-
-
-
-== Niveau 3 : Wrapper réutilisable
-#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Fichier* : flow/01_simulation/run_sim.sh])
-
-
-Comme déjà mensionné précédemment, en pratique, on ne va pas lancer les commandes à la main à chaque fois car:
-1. Ça peut être source d'erreur.
-2. Il nous faut avoir un flow répétable
-3. On ne sait pas vraiment ou Xcelium stocke ses fichiers de simu, les logs, les résulats etc... 
-
-\
-C'est pourquoi on va privilégier l'utilisation d'un wrapper qui va tout automatiser pour nous. C'est l'objectif du script run_sim.sh.
-
-\
-Pour lancer le script il est d'abord nécessaire de lui dire d'ou les chemins relatifs doivent partir: 
-
-#codly(stroke: 1pt + red)
-```bash
-export DESIGN_PATH=/chemin/vers/la/racine/du/dossier
-```
-#codly(stroke: 1pt + gray)
-
-Puis on peut lancer le script sans vue graphique : 
-```bash
-bash flow/01_simulation/run_sim.sh ripple_carry_4 
-```
-
-Ou avec l'interface graphique : 
-
-```bash
-bash flow/01_simulation/run_sim.sh ripple_carry_4 --gui
-```
-
-\
-*Fonctionnalités clés du script :*
-- Utilise l'argument pour savoir quel module simuler (ici le module ripple_carry_4). Si on veut simuler un autre module il suffira de l'intégrer au code _run_sim.sh_ de la même manière que l'ripple_carry_4. Procéder ainsi permet d'éviter de s'emmêler entre les paths, d'avoir des arguments à ralonge ect... Donc, on rajoute les bons paths dans le code et on appelle simplement le bon module avec un mot clé.
-- Crée un répertoire de run propre dans : rundir/01_simulation/ripple_carry_4/
-- Si existant, supprime le contenu du run précédent afin d'éviter l'utilisation d'anciens résultats par exemple.
-- Crée une base de formes d'onde SHM consultables par SimVision dans: waves.shm/ et y enregistre les signaux du testbench et des sous-modules.
-- Redirige les fichiers générés par Xcelium vers le répertoire du run.
-- Récupère le code de retour de Xrun pour détecter si c'est une erreur de compilation, d'élaboration ou de simulation.
-
-\
 #showybox(
-  title: "Note : Chacun sa manière de faire",
-  frame: (
-    border-color: blue,
-    title-color: blue.lighten(30%),
-    body-color: blue.lighten(95%),
-    footer-color: blue.lighten(80%)
-  ),
-)[
-  Ceci est un exemple de script mais il existe *autant de manières de faire que de personne*. Il ne faut surtout pas resté bloqué avec une procédure "typique" qui est illisible par d'autres.
-]
-
-#showybox(
-  title: [#text(weight: "bold", fill: black, [Attention : source $!=$ bash] )],
+  title: [#text(weight: "bold", fill: black, [Attention : source $!=$ bash - 1/2] )],
   frame: (
     border-color: red,
     title-color: red.lighten(30%),
@@ -672,20 +608,8 @@ bash flow/01_simulation/run_sim.sh ripple_carry_4 --gui
     footer-color: red.lighten(80%)
   ),
 )[
-  Dans la logique, les commande *source* et *bash* (ou ./) servent toutes les deux à executer un processus mais la commande *source* est prévue pour *mettre à jours des variables d'environnement*. Pour cette raison, quand on execute un script il ne faut #rouge("jamais executer avec source") et toujours privilégier bash ou ./
+  Dans la logique les commande source et bash (ou ./) servent toutes à executer un processus mais la commande source est prévue pour mettre à jours des variables d'environnement (comme on en reparle plus loin). Pour cette raison, quand on execute un script il ne faut #rouge("jamais executer avec source") et toujours privilégier bash ou ./
 ]
-#showybox(
-  title: [#text(weight: "bold", fill: black, [Attention : Export dans un script] )],
-  frame: (
-    border-color: red,
-    title-color: red.lighten(30%),
-    body-color: red.lighten(95%),
-    footer-color: red.lighten(80%)
-  ),
-)[
-  Si on fait `export PATH_CUSTOM=/le/chemin` dans un programme shell (ex: run_sim.sh) et qu'on l'exectute avec la commande *bash* la variable PATH_CUSTOM sera détruite à la fin de l'execution du programme. Pour éviter le l'exporter à chaque fois (elle resservira dans les autres étapes) il vaut mieux faire l'export dans le terminale directement plutôt que dans le script.
-]
-
 \
 Maintenant que nous avons simulés notre DUT, nous pouvons passer à synthèse.
 
@@ -739,34 +663,27 @@ Dans un premier temps il est primordial de comprendre ce dont on a besoin pour l
   table.header(
     [*Élément*], [*Exemple*], [*Rôle*],
   ),
-  [RTL], [`ripple_carry_4.sv`], [Description logique synthétisable],
+  [RTL], [`adder_pipeline.sv`], [Description logique synthétisable],
   [Filelist], [`rtl.f`], [Ordre et chemins des sources],
   [Contraintes], [`constraints.sdc`], [Clocks, délais d'E/S et exceptions],
   [Liberty], [`stdcells_tc.lib`], [Fonctions, arcs, délais et puissance],
   [Environnement], [`conf_ihp130.env`], [Chemin absolu des fichiers ],
-  [Netlist mappée], [`ripple_carry_4_netlist.v`], [Netlist avec cellules du PDK],
-  [SDC exporté], [`ripple_carry_4_sdc.sdc`], [Contraintes de timing mappées],
-  [Fichiers SDF], [`ripple_carry_4_delay.sdf`], [Extraction de parasites],
+  [Netlist mappée], [`adder_pipeline.mapped.v`], [Cellules choisies],
+  [SDC exporté], [`adder_pipeline.mapped.sdc`], [Contraintes transmises],
   [Rapports], [`report_timing.rpt`, `report_area.rpt`, `report_qor.rpt`], [Preuves à examiner],
 )],
 caption: [#text(fill: green, [*entrées*]),  #text(fill: orange, [*sorties*]) de la minimales de la synthèse logique]
 )<tab_elements_synthese>
 
-*Note :* Encore une fois, les entrées sorties présentées ici permettent d'aller au bout du flow mais sont minimales. Il est donc possible de rajouter des entrées/sorties supplémentaires comme les lef en entrée, mmmc en sortie ect.
-
+*Note :* En plus de ces sorties, la synthèse peut également générerun fichier _.mmmc_ (nécessaire par la suite pour le PnR).
 \
 On ne va pas revenir sur ce que sont les fichiers `.sv` et `.f` mais voici une rapide description des autres entrées :
 
 \
-- *Fichiers .env (variables d'environnement)* : C'est un fichier de définition de variables que l'on va utiliser dans les différents scripts pour la synthèse et le PnR. Ces fichiers permettent d'écrire des scripts génériques utilisant des variables comme _\$FICHIER_SDC_ qu'on va définir une bonne fois pour toute dans les *.env* plutôt que d'écrire le PATH à la main dans chaque fichier et devoir tout changer partout au moindre changement de techo ou de dut.
-
-\
-- *Fichier SDC (Synopsys Design Constraint):* Le fichier qui va définir les contraintes de timing à respecter pour notre design. Genus a besoin du SDC pour savoir quelle fréquence il doit viser pendant la synthèse. 
-
-#TODO("Si il voit que le timing n'est pas respecté, il se passe quoi?")
+- *Fichier SDC (Synopsys Design Constraint):* Le fichier qui va définir les contraintes de timing à respecter pour notre design. 
 
 #showybox(
-  title: [*Note* : Pourquoi un fichier .sdc en entrée et un autre en sortie ?],
+  title: [*À retenir* :],
   frame: (
     border-color: blue,
     title-color: blue.lighten(30%),
@@ -774,13 +691,10 @@ On ne va pas revenir sur ce que sont les fichiers `.sv` et `.f` mais voici une r
     footer-color: blue.lighten(80%)
   ),
 )[
-  Le fichier .sdc en *entrée* indique Le budget disponible pour un chemin entrée-vers-sortie est approximativement : [*période - délai d'entrée - délai de sortie - marges internes*]. Il correspond à un objectif théorique mais n'est pas lié à la techno ciblé ni aux cellules utilisées. Il est uniquement dépedant du *cahier des charges*.
- 
-  \
-  Le fichier .sdc de sortie donne le budget de temps *en utilisant les cellules du pdk*. Il va définir très précisément quelle est la deadline pour que telle ou tellle cellule reçoive ou envoie son signal. C'est un fichier à fournir à Innovus pour le PnR afin qu'il sache après placement routage si le timing est toujours respecté.
+  Le budget disponible pour un chemin entrée-vers-sortie est approximativement : [*période - délai d'entrée - délai de sortie - marges internes*].
+  Les valeurs doivent correspondre au *contrat réel du bloc*, pas à un nombre choisi uniquement pour obtenir un rapport positif...
 ]
 
-\
 - *Fichiers .lib (liberty)* : Ce sont les fichiers du PDK qui définissent les caractéristiques des cellules de la technologie cible. Ces fichiers répertorient les temps de passage dans chaque cellule. Il existe 3 types de liberty:
  
  -- tc ou tt pour typical (#underline("ie.") le temps moyen de passage dans la cellule)
@@ -789,29 +703,25 @@ On ne va pas revenir sur ce que sont les fichiers `.sv` et `.f` mais voici une r
 
  -- bc ou ff pour best case / fast fast (temps le plus rapide) 
 
-\
-- *Fichier SDF* : Fichier nécessaire à Innovus pour l'extraction de parasytes dans la phase de PnR.
+== Niveau 1 : Commande et Tcl minimal
+#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/02_synthesis/01_typical_minimal/])
 
-#TODO("on peut aussi donner à Xcellium non?")
- 
-
-== Niveau 0 : L'appel direct $->$ mauvaise idée
-
-Comme il y a beaucoup d'étapes à effectuer lors de la synthèse, un appel direct à l'outil n'est pas recommandé car genus prend énormément de paramètres. Un exemple d'appel direct à genus pourrait être : 
+=== L'appel direct $->$ mauvaise idée
+Comme il y a beaucoup d'étapes à effectuer lors de la synthèse, un appel direct à l'outil n'est pas recommandé. Un exemple d'appel direct à genus pourrait être : 
 
 ```bash
 genus -no_gui \
-     -execute "read_hdl -sv chemin/vers/ripple_carry_4.sv" \
-     -execute "elaborate ripple_carry_4" \
-     -execute "read_sdc chemin/vers/ripple_carry_4.sdc" \
+     -execute "read_hdl -sv chemin/vers/adder_pipeline.sv" \
+     -execute "elaborate adder_pipeline" \
+     -execute "read_sdc chemin/vers/adder_pipeline.sdc" \
      -execute "syn_generic" \
      -execute "syn_map" \
      -execute "syn_opt" \
-     -execute "write_hdl -hier > chemin/vers/ripple_carry_4.mapped.v" \
-     -execute "write_sdc > chemin/vers/ripple_carry_4.mapped.sdc" \
+     -execute "write_hdl -hier > chemin/vers/adder_pipeline.mapped.v" \
+     -execute "write_sdc > chemin/vers/adder_pipeline.mapped.sdc" \
      -log genus.log
 ```
-*Note* : Ce code est donné à tire d'exemple. L'appel direct à genus ne fonctionne pas en l'état (mauvais chemin etc.)
+\ *Note* : Ce code est donné à tire d'exemple. L'appel direct à genus ne fonctionne pas en l'état (mauvais chemin etc.)
 
 \
 *Explications de la commande :*
@@ -820,19 +730,19 @@ On retrouve les grandes étapes répertoriées dans la @tab_elements_synthese :
 1. *`read_hdl`* : compile les sources
 2. *`elaborate`* : construit la hiérarchie et résout les paramètres
 3. *`read_sdc`* : applique l'intention de timing
-4. *`syn_generic`* : transforme le RTL en logique générique et simplifie les expressions
-5. *`syn_map`* : choisit des cellules disponibles dans la Liberty
-6. *`syn_opt`* : améliore timing, aire et règles électriques selon l'effort demandé
-7. *Rapports* : qualifient le résultat
-8. *Exports* : alimentent Innovus
+4. *Checks* : détectent les références non résolues et contraintes incomplètes *avant l'optimisation*
+5. *`syn_generic`* : transforme le RTL en logique générique et simplifie les expressions
+6. *`syn_map`* : choisit des cellules disponibles dans la Liberty
+7. *`syn_opt`* : améliore timing, aire et règles électriques selon l'effort demandé
+8. *Rapports* : qualifient le résultat
+9. *Exports* : alimentent Innovus
 
 \
 *Inconvénients de procéder ainsi:*
 - Chemins relatifs en dur $->$ peu portable, source d'erreur.
 - Pas de gestion d'erreur (si une étape échoue, Genus continue).
 - Pas de rapports (pas de report_timing.rpt, etc.)
-- Pas de répertoire de travail avec des sorties bien rangées.
-- Et sourtout #rouge("incomplet !"). Il manque beaucoup de choses et de paramètres pour que la synthèse aboutisse.
+- Pas de répoertoire de travail avec des sorties bien rangées.
 
 \
 *Conclusion* : C'est une #rouge("mauvaise méthode"). 
@@ -847,93 +757,64 @@ On retrouve les grandes étapes répertoriées dans la @tab_elements_synthese :
     footer-color: blue.lighten(80%)
   ),
 )[
-  On peut voir sur l'appel direct les #rouge("étapes clés indispensables") pour réaliser la synthèse. Evidemment, beaucoup de paramètres supplémentaires sont à ajouter pour affiner la synthèse mais l'essentiel est là. 
+  On peut voir sur l'appel direct les #rouge("étapes clés indispensables") pour réaliser la synthèse. Evidemment, beaucoup de paramètres supplémentaires peut être ajoutés pour affiner la synthèse mais l'essentiel est là. 
 
   \
-  Ici, nous avons un DUT simple et donc nous pouvons *regrouper* les étapes de la synthèse en un seul fichier. Cependant, il est courant de *séparer* les différentes étapes de la synthèse (syn_generic, syn_map, syn_opt ect.) en *plusieurs fichiers* pour vérifier qu'ils marchent et les optimiser un par un.
+  Ici, nous avons un DUT simple et donc nous pouvons *regrouper* les étapes de la synthèse en un seul fichier. Cependant, il est courant de *séparer* les différentes étapes de la synthèse (syn_generic, syn_map, syn_opt) en trois fichiers pour les optimiser un par un.
 ]
 
-== Niveau 1 : Commande et Tcl minimale
-#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/02_synthesis/01_syn_minimal/])
+=== Script synthèse minimal
 
-On vient de le voir, contrairement à la simulation, Genus nécessite d'être configuré pour correctement fonctionner. En effet, il y a davantage d'étapes : le lien avec le PDK, les différents fichiers `.f`, `.sdc` etc. et tout ceci nésessite des scripts pour être fait correctement et dans le bon ordre. 
 
-\
-Le language de script qui va nous permettre de configurer genus est le *`.tcl`*. C'est dans ce fichier qu'on va renseigner ce que genus dois faire et dans quel ordre. Pour lancer genus en utilisant le fichier `.tcl` de configuration la commande minimale est :
+Contrairement à la simulation, la synthèse nécessite un peu plus de scripts car genus a besoin d'être configuré pour conrrectement fonctionner. En effet, il y a davantage d'étapes : le lien avec le PDK, les différents fichiers `.f`, `.sdc` etc. et tout ceci nésessite des scripts pour être fait correctement et dans le bon ordre. 
 
-\
+Le language de script qui va nous permettre de configurer genus est le `.tcl`. C'est dans ce fichier qu'on va renseigner ce que genus dois faire et dans quel ordre. Pour lancer genus en utilisant le fichier `.tcl` de configuration la commande minimale est :
+
 ```bash
-genus -legacy_ui \
--file flow/02_synthesis_genus/01_syn_minimal/syn_minimal.tcl \
--log rundir/02_synthesis/logs/
+genus -file flow/02_synthesis/01_typical_minimal/genus_minimal.tcl
 ```
 
-* Explication de la commande* : 
-- *`-legacy_ui`* : Ouvre Genus en mode *legacy* (il reconnait alors les commandes utilisées dans le script).
-- *`-file`* : Permet de dire quel fichier de script utiliser.
-- *`-log`* : Permet de spécifier ou ranger ses fichiers de log (non essentiel dans l'absolu mais *très* fortement recommandé).
-
-\
-Si la variable DESGN_PATH n'a pas été exportée, on devrait avoir une sortie proche de : 
+On devrait avoir une sortie proche de : 
 ```sh
-can't read "::env(DESIGN_PATH)": no such element in array
-Encountered problems processing file: flow/02_synthesis/01_syn_minimal/syn_minimal.tcl
+can't read "::env(TUTORIAL_ROOT)": no such element in array
+Encountered problems processing file: flow/02_synthesis/01_typical_minimal/genus_minimal.tcl
 ```
 
-*Patatra* ! Genus ne reconnais pas les chemin des fichiers. C'est #text(fill: green, [*normal*]). Quand on regarde le script on peut voir que l'appel a genus utilise des PATH avec des variables d'environnement. Dans la logique de ce tutoriel, il faut donc d'abord exporter la variable DESIGN_PATH qui sert de référence aux autres chemins (encore une fois, ça n'est pas la seule façon de procéder). En résumé cela donne :
+*Patatra* ! Genus ne reconnais pas les chemin des fichiers. C'est #text(fill: green, [*normal*]). Quand on regarde le script *run_syn_minimal.sh* on peut voir que l'appel a genus utilise des PATH avec des variables d'environnement : 
+#codly(highlights: (
+  (line: 2, start: 14, end: 27, fill:red),))
+```bash
+genus -no_gui \
+     -files "$TUTORIAL_ROOT/flow/02_synthesis/01_typical_minimal/genus_minimal.tcl" \
+     -log "$GENUS_RUN_DIR/genus"
+```
 
+Nous aurions pu définir les chemins en dur dans les scripts mais pour des raisons de répétabilité et modularité des scripts il est préférable d'utiliser des variables d'environnement génériques que l'on vient charger en fonction du DUT dont on veut faire la synthèse. Dans cet exemple, à la place de devoir remettre à jours le nom du DUT (source d'erreur et pénible à faire) à chaque fois qu'on change de dut on va utiliser un fichier externe : design.env (dans le répertoire dut car spécifique) qui va definir quelles variables et fichiers utiliser. Ainsi, quand on veut changer de dut, il nous suffit simplement de changer de design.env!
 
-\
-#figure(
-[#showybox(
-title: [#text(fill: black, "Terminal")], 
-frame: (
-    border-color: gray,
-    title-color: gray.lighten(20%),
-    body-color: gray.lighten(80%),
-    footer-color: gray.lighten(80%)
-  ),
-[Terminal d'ou est lancé la commande genus. Les outils cadence sont sourcées (les commandes *xrun, genus, innovus* par exemple sont accessibles) ainsi que la variable *\$DESIGN_PATH* définie par la commande $#rect(radius: 5pt, fill: white, "export DESIGN_PATH=/chemin/vers/la/racine/du/dossier")$
-
-
-#showybox(
-title-style: (boxed-style: (:)),
-frame: (
-  title-color: green.lighten(50%),
-  border-color: green,
-  body-color: green.lighten(95%)
-  ),
-title: [#text(fill: black, "genus")],
-[ Genus execute *ligne par ligne* les commandes du script. Il commence par charger les variables d'environnement utilisés pour la simulation (ex : *\$GENUS_SDC*) qui sont définies dans les deux fichiers *.env*:
-1. Le fichier qui défini toutes les variables liées à la techno utilisée : \$env(DESIGN_PATH)/config/conf_ihp130.lib
-2. Le fichiers de variables propre au dut : \$env(DESIGN_PATH)/dut/design.lib
+La procédure typique est donc : 
 
 \
-Ainsi, quand on veut changer de dut, il nous suffit simplement de pointer vers un autre  design.env. De même pour changer de pdk on peut simplement changer de config.env.
+#align(center, [
+  #rect(fill: green.lighten(95%), stroke: green, [1. Charger les variables d'environnement ```bash
+  source design.env
+  ```])
 
+  $arrow.b$
+
+  #rect(fill: blue.lighten(95%), stroke: blue, [2. Lancer genus avec le fichier de config .tcl : ```bash
+  genus -file flow/02_synthese/01_minimal/genus_minimal.tcl
+  ```])
+
+  $arrow.b$
+
+  #rect(width: 482pt, fill: red.lighten(95%), stroke: red, [3. Ranger les sorties dans un dossier uique labélisé par exemple avec la commande `mv`])
+])
 \
-Ensuite, il déroule le flow de synthèse ligne par ligne et s'arrête en cas d'erreur.
-]
-)],
+C'est exactement ce que fait le script run_minimal.sh. Pour l'executer :
 
-)
-],
-caption: [Imbrication des appels des fonctions de la synthèse]
-)
-
-\
-#showybox(
-  title: [*Note * : Utilisation de Genus ligne par ligne],
-  frame: (
-    border-color: blue,
-    title-color: blue.lighten(30%),
-    body-color: blue.lighten(95%),
-    footer-color: blue.lighten(80%)
-  ),
-)[
-  Plutôt que de lancer Genus avec un script on aurait tout aussi bien pu le lancer avec la commande $#rect(radius: 5pt, fill: white, "genus -legacy_ui")$ et *executer les lignes du script* les unes à la suite des autres.
-]
-
+```bash
+bash flow/02_synthesis/01_typical_minimal/run_syn_minimal.sh
+```
 
 #showybox(
   title: [*Méthode* : Repérer les erreurs],
@@ -944,7 +825,9 @@ caption: [Imbrication des appels des fonctions de la synthèse]
     footer-color: blue.lighten(80%)
   ),
 )[
-  Lorsque l'on lance des gros scripts, une erreur peut vite se glisser, se perdre et devenir irrepérable (car non bloquant pour Genus par exemple). Pour prévenir ce problème il y a une règle de bonne pratique toute simple : *On découpe le flow en sous-étapes*.
+  Lorsque l'on lance des gros scripts, une erreur peut vite se glisser, se perdre et devenir irrepérable. Pour prévenir ce problème il y a une règle de bonne pratique toute simple : 
+  
+  *Une action = une erreur en cas d'échec*.
 ]
 
 #showybox(
@@ -956,15 +839,27 @@ caption: [Imbrication des appels des fonctions de la synthèse]
     footer-color: blue.lighten(80%)
   ),
 )[
-  Il faut bien avoir en tête que le fichier .tcl n'est pas executé en tant que tel, c'est genus qui est executé et qui lance les commandes lignes par lignes. Ainsi, le script ne peut pas charger des variables d'environnement *globale* et une fois sorti de genus (avec la commande *`exit`*) les variables comme *\$GENUS_SDC* ne seront plus définies. 
+  Il faut bien avoir en tête que le fichier tcl n'est pas executé en tant que tel, c'est genus qui est executée et qui l'utilise comme fichier de configuration. Ainsi, le script ne peut pas charger des variables d'environnement globale et des chemins configurables par lui même. C'est pourquoi il est nécessaire de les charger en amont dans un script `bash`.
+]
+
+#showybox(
+  title: [#text(weight: "bold", fill: black, [Attention : source $!=$ bash - 2/2] )],
+  frame: (
+    border-color: red,
+    title-color: red.lighten(30%),
+    body-color: red.lighten(95%),
+    footer-color: red.lighten(80%)
+  ),
+)[
+  Si on fait `export PATH_CUSTOM=/le/chemin` dans un programme shell et qu'on l'exectute avec la commande *bash* la variable PATH_CUSTOM sera détruite à la fin de l'execution du programme. Si on veut pouvoir s'en servir par la suite il faut donc que ça reste et pour cela on utilise la commande *source*.
 ]
 
 
-== Comprendre les rapports
+=== Comprendre les rapports
 Maintenant qu'on a fait la première synthèse, on peut regarder les résultats dans `rundir/02_synthese/nom_du_run`. On y trouve : 
 #set list(marker: ([•], [#sym.arrow.r.curve]))
 - *fv\/* (pour la vérification formelle, pas utilisé ici)
- - ripple_carry_4/
+ - adder_pipeline/
  - fv_map.fv.json
  - fv_map.map.do
  - fv_map.singlebit.original_name.alias.json.gz
@@ -974,19 +869,15 @@ Maintenant qu'on a fait la première synthèse, on peut regarder les résultats 
  - rtl_to_fv_map.do
 - *genus\/* 
  - genus.cmd : la commande appelée
- - genus.log : le log de Genus
+ - genus.log : le log de Genus (#rouge("super utile"))
 - *outputs\/* (les sorties utilisées par la suite dans le PnR)
- - ripple_carry_4.mapped.sdc
- - ripple_carry_4.mapped.v
+ - adder_pipeline.mapped.sdc
+ - adder_pipeline.mapped.v
 - *reports\/*
  - report_area.rpt
  - report_qor.rpt
  - report_timing.rpt
 
-
-#TODO("pourqoi output sdc : Le mapped.v dit à Innovus quelles cellules et connexions existent, tandis que le mapped.sdc lui dit quelles contraintes temporelles doivent toujours être respectées.Autrement dit, c’est encore une description des contraintes, pas des résultats.
-
-Il peut différer du SDC original parce que Genus travaille désormais sur le design élaboré/mappé")
 \
 Normalement, si les scripts sont bien faits, il n'y a pas besoin de regarder dans le détails les rapports car la moindre erreur sera remontée dans le script. Il est tout de même *essentiel* de bien comprendre ce qui se passe donc voici les sorties classiques:
 #showybox(
@@ -1017,7 +908,7 @@ Une slack *négative* indique qu'on est en retard $->$ #rouge("violation des con
 Pour vérifier, on peut parcourir le fichier à la main ou lancer une commande du type : 
 ```bash
 grep -i "slack" \
-rundir/02_synthesis/ripple_carry_4_20260825T152355Z/reports/report_timing.rpt 
+rundir/02_synthesis/adder_pipeline_20260825T152355Z/reports/report_timing.rpt 
 ```
 
 \
@@ -1162,7 +1053,7 @@ Le fichier helpers.tcl regroupe donc les utilitaires du flow. Ce fichier contien
 
 Pour lancer le script de niveau 2 il faut tapper:
 ```bash
-bash flow/02_synthesis/02_typical_advanced/run_syn.sh ripple_carry_4
+bash flow/02_synthesis/02_typical_advanced/run_syn.sh adder_pipeline
 ```
 
 === Lire les sorties
@@ -1266,7 +1157,7 @@ Les deux notions essentielles à comprendre à ce stade sont le setup et hold.
 \
 Pour lancer le script du niveau 3 : 
 ```bash
-bash flow/02_synthesis/03_mmmc/run_syn_mmmc.sh ripple_carry_4
+bash flow/02_synthesis/03_mmmc/run_syn_mmmc.sh adder_pipeline
 ```
 
 \
@@ -1307,7 +1198,6 @@ bash flow/02_synthesis/03_mmmc/run_syn_mmmc.sh ripple_carry_4
 
 = Etape 3 : Implémentation - Innovus 
 
-#TODO("oa : Cadence présente justement OA comme un flow d’interopérabilité Innovus/Virtuoso")
 commade legacy vs stylus : lageacy est ce qui avait avant mais le nouiveau truc (plus homogène avec la synthese) est stylus qu'il vaut mieux utiliser
 
 DEF : 
