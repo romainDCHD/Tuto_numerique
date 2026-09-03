@@ -532,7 +532,8 @@ xrun -64bit \
 * Explication de la commande* :
 - *`-access +rwc`* : Donne les droits de prober tous les signaux dans la hiérarchie du design.
 - *`-gui`* : Ouvre la vue graphique
-- *`-f`* ; Lit une filelist.
+- *`-f`* : Lit une filelist.
+- *`-mess`* : Affiche tous les messages en détail
 
 
 === Utilisr la vue graphique
@@ -790,7 +791,7 @@ On ne va pas revenir sur ce que sont les fichiers `.sv` et `.f` mais voici une r
  -- bc ou ff pour best case / fast fast (temps le plus rapide) 
 
 \
-- *Fichier SDF* : Fichier nécessaire à Innovus pour l'extraction de parasytes dans la phase de PnR.
+- *Fichier SDF (Standard Delay Format) * : Fichier nécessaire à Innovus pour l'extraction de parasytes dans la phase de PnR.
 
 #TODO("on peut aussi donner à Xcellium non?")
  
@@ -923,6 +924,21 @@ caption: [Imbrication des appels des fonctions de la synthèse]
 
 \
 #showybox(
+  title: [#text(weight: "bold", fill: black, [Comprendre le script tcl] )],
+  frame: (
+    border-color: red,
+    title-color: red.lighten(30%),
+    body-color: red.lighten(95%),
+    footer-color: red.lighten(80%)
+  ),
+)[
+  Nous n'allons pas nous attarder énormément ici sur le contenu du script tcl car c'est une discipline à part entière, avec toutes ses complexités. Chaque version de Genus à ses propres commandes, ses subtilités et surtout *chaque design* va nécesiter la mise en place de paramètres très spécifiques.
+
+  La version minimale du script donne vraiment les commandes *obligatoires* et laisse l'outil en automatique. Dans la pratique ça n'est pas aussi simple ; tout le travail réside dans la subtilité.
+]
+
+\
+#showybox(
   title: [*Note * : Utilisation de Genus ligne par ligne],
   frame: (
     border-color: blue,
@@ -961,7 +977,7 @@ caption: [Imbrication des appels des fonctions de la synthèse]
 
 
 == Comprendre les rapports
-Maintenant qu'on a fait la première synthèse, on peut regarder les résultats dans `rundir/02_synthese/nom_du_run`. On y trouve : 
+Maintenant qu'on a fait la première synthèse, on peut regarder les résultats dans `rundir/02_synthese/nom_du_run`. On y trouve  une arborescence de ce type : 
 #set list(marker: ([•], [#sym.arrow.r.curve]))
 - *fv\/* (pour la vérification formelle, pas utilisé ici)
  - ripple_carry_4/
@@ -972,23 +988,31 @@ Maintenant qu'on a fait la première synthèse, on peut regarder les résultats 
  - fv_map.v.gz
  - read_libs.tcl
  - rtl_to_fv_map.do
-- *genus\/* 
+
+ \
+- *logs\/* 
  - genus.cmd : la commande appelée
  - genus.log : le log de Genus
+
+ \
 - *outputs\/* (les sorties utilisées par la suite dans le PnR)
- - ripple_carry_4.mapped.sdc
- - ripple_carry_4.mapped.v
+ - ripple_carry_4_delays.sdf
+ - ripple_carry_4_netlist.v
+ - ripple_carry_4_sdc.sdc
+
+\
 - *reports\/*
  - report_area.rpt
  - report_qor.rpt
  - report_timing.rpt
 
-
-#TODO("pourqoi output sdc : Le mapped.v dit à Innovus quelles cellules et connexions existent, tandis que le mapped.sdc lui dit quelles contraintes temporelles doivent toujours être respectées.Autrement dit, c’est encore une description des contraintes, pas des résultats.
-
-Il peut différer du SDC original parce que Genus travaille désormais sur le design élaboré/mappé")
 \
-Normalement, si les scripts sont bien faits, il n'y a pas besoin de regarder dans le détails les rapports car la moindre erreur sera remontée dans le script. Il est tout de même *essentiel* de bien comprendre ce qui se passe donc voici les sorties classiques:
+*Alors, qu'est ce qu'il faut regarder ?*
+
+La procédure typique est : 
+- Si on a une erreur -->  on regarde le log (ici *genus.log*) pour comprendre d'ou vient l'erreur et la corriger.
+- Si non, on regarde les *rapports* pour vérifier que le circuit correspond aux attentes (et, si oui, c'est terminé pour cette étape et on peux fournir les *outputs* à innovus pour le PnR).
+
 #showybox(
   title: [*Note* : Erreur de synthèse types],
   frame: (
@@ -1002,10 +1026,10 @@ Normalement, si les scripts sont bien faits, il n'y a pas besoin de regarder dan
 
 ]
 
-Ainsi, 
-- Si on a une erreur --> *genus.log*
-- Si non, on regarde les *rapports* (et on pourra fournir les *outputs* à innovus pour le PnR) 
+\
+Mais alors comment lire les rapports et a quoi correspondent ils ?
 
+#TODO("stylus, reagarder les rpt nécessaire?")
 
 ==== Fichier : report_timing.rpt - le timing
 Comme son nom l'indique c'est dans ce fichier qu'on retrouve les informations relatives au timing. C'est ici que l'on voit si le timing respecte les contraintes définies dans le sdc. 
@@ -1060,7 +1084,7 @@ Autres vérifications à effectuer :
   - Une bonne fermeture setup/hold
   - On a un résultat signoff
 
-  Les #rouge("rapports doivent donc toujours être examinés"), même lorsque le wrapper affiche #text(fill: green, [TEST_PASS]).
+  Les #rouge("rapports doivent donc toujours être examinés"), même lorsque la commande s'est terminée normalement.
 
   On peut faire cette vérification à la main ou l'intégrer dans un script (cf. niveaux suivants).
 ]
@@ -1084,7 +1108,7 @@ Rapport de la surface prise par notre circuit. Il faut notamment vérifier :
   set_db syn_goal {area 1.0 timing 0.8}  # effort 100% aire, 80% timing
   set_db syn_timing_slack_margin 0.05   # Marge de 50ps sur le slack
   ```
-Genus essayera de réduire l'aire, mais ne sacrifiera pas le timing au-delà de la marge définie par syn_timing_slack_margin
+Genus essayera de réduire l'aire, mais ne sacrifiera pas le timing au-delà de la marge définie par syn_timing_slack_margin.
 
 ]
 
@@ -1467,6 +1491,13 @@ vérifications physiques
 DEF + netlist + GDS
   ↓
 timing signoff optionnel
+
+
+= Etape 4 : Simulation gate-level
+Une fois 
+
+xrun -64bit   -sv    -access +rwc   -gui   -timescale 1ns/1ps /share/Pdk/IHP/SG13S/ixc013_stdcell/verilog/ixc013_stdcell.v /share/Pdk/IHP/SG13S/ixc013_stdcell/verilog/ixc013_primitives.v flow/03_pnr/01_pnr_minimal/workdir/outputs/ripple_carry_4.routed.v dut/rtl/tb_ripple_carry_4.sv  -sdf_cmd_file flow/01_simulation/02_simulation_gate_level/sdf_cmd_file -mess
+
 
 // ===================== ANNEXES =====================
 #heading(numbering: none, outlined: true)[Annexes]
