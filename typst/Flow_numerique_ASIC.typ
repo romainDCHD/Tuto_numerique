@@ -137,7 +137,7 @@ Ce circuit permet, sans rajouter beaucoup de complexité, d'étudier des problé
 
 #showybox(
 title: "Racine du dossier", 
-[Racine principale du git contenant le pdf et README. #rouge("Toujours lancer les scripts depuis ce dossier")],
+[Racine principale du git contenant le pdf et README.],
 frame: (
     border-color: black,
     title-color: black.lighten(30%),
@@ -161,7 +161,7 @@ title: "dut",
 #showybox(
 title-style: (boxed-style: (:)),
 title: "config",
-[Contient les fichiers de config liés au pdk / Cadence. Sert à faire le lien entre les scripts génériques et la config propre au labo.]
+[Contient les fichiers de config liés au pdk / Cadence. Sert à faire le lien entre les scripts génériques et la #rouge[config propre au labo].]
 )
 
 
@@ -197,6 +197,9 @@ Ces scripts sont pensés pour être *réutilisables* dans d'autres contextes que
 
   \
   La logique ici est que tous les fichiers spécifiques au dut soient dans le dossier _dut_ tandis que les scripts dans _flow_ sont *génériques* et utilisent des PATH ou variables définies dans _config_ et _dut_.
+  
+  \
+  La logique ici est de #rouge[toujours lancer les scripts dans le dossier "workdir" de chaque partie]. Il y a d'autres façons de procéder mais c'est la plus courante. 
 ]
 
 == Approche pédagogique : méthode en plusieurs niveaux d'abstraction
@@ -228,6 +231,7 @@ Chaque chapitre montre d'abord:
 
 Tout au long du tutoriel, on considère que l'environnement Cadence est chargé et que les commandes de lancement des outils `xrun, genus, innovus` sont chargées 
 
+\
 #rouge("Disclimer 2 : ")La microélectronique numérique est une discipline qui fourmille de détails et de cas particuliers. On pourrait écrire 300 pages d'explications simplement sur la synthèse. Ce n'est pas l'objectif ici. Ce tutoriel permet de voir *en surface* les étapes du flow numériques. Il permet de comprendre comment les choses s'imbriquent entre elles et il constitue un bon point de départ pour comprendre le flow numérique dans sa globalité mais il *n'est pas suffisant* pour former un bon numéricien. Il est nécessaire par la suite d'approfondir les notions.
 
 
@@ -284,6 +288,13 @@ On peut noter qu'il n'y a pas de sortie à proprement parler pour la simulation 
 
 // -------------------  SOUS - SECTION ------------------- 
 ==  Niveau 1 : Commande Xcelium minimale
+#columns(2, gutter: 2pt)[
+  #rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Fichier* : dut/rtl/full_adder_comb.sv])
+
+  #colbreak()
+
+  #rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier d'execution* : flow/01_simulation/workdir])
+]
 Dans ce niveau, nous nous intéressons au module full_adder_comb.
 Module très simple et purement combinatoire (sans clock). La première étape consiste à savoir ce qu'on veut que le module fasse. Cette étape passe souvent par écrire une *machine à état* ou une *table de vérité* pour être au clair sur les fonctions *précises* du module. 
 === Définition du contrat logique
@@ -392,6 +403,8 @@ endmodule
 
 // -------------------  SOUS - SECTION -------------------
 === Testbench du full adder comb
+#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Fichier* : dut/rtl/tb_full_adder_comb.sv])
+
 De la même manière que un module, un testbench est aussi un module RTL qui comprend le module a tester ainsi que les entrée sorties commandées permettant de faire le test (exactement comme en analogique). Le rôle du testbench est également de faire ressortir des *marqueurs* (#text(fill: green,weight: "bold" ,[PASS]) ou #rouge[FAIL]) pour vérifier le bon fonctionnement comportemental de note module / DUT. 
 
 
@@ -410,14 +423,14 @@ De la même manière que un module, un testbench est aussi un module RTL qui com
 
 
 === La simulation - Niveau 1 : commande minimale 
-Une fois le RTL du full adder et de son testbench écrits (et qu'on a donc une description comportementale de nos modules), il faut effectuer la simulation. Pour ce faire on execute (après avoir chargé Cadence et les outils) *depuis la racine du tutoriel*:
+Une fois le RTL du full adder et de son testbench écrits (et qu'on a donc une description comportementale de nos modules), il faut effectuer la simulation. Pour ce faire on execute (après avoir chargé Cadence et les outils) *depuis le dossier "workir" de la simulation*:
 
 
 #codly(stroke: 1pt + red)
 ```bash
 xrun -64bit -sv -timescale 1ns/1ps \
-   dut/rtl/full_adder_comb.sv \
-   dut/rtl/tb_full_adder_comb.sv \
+   ../../../dut/rtl/full_adder_comb.sv  \
+   ../../../dut/rtl/tbfull_adder_comb.sv  \
    -top tb_full_adder_comb
 ```
 #codly(stroke: 1pt + gray)
@@ -493,6 +506,17 @@ Dans un premier temps, il est important de comprendre ce que fait notre module:
 
 Comme nous pouvons le voir sur la @fig-04_ripple_carry_contrat_logique, le module ripple_carry_4 contient le sous-module full_adder_comb (en plusieurs instances). Pour la simulation, on peut executer xrun individuellement pour chaque DUT et chaque testbench (comme avec le niveau 1) mais une bonne pratique si on a beaucoup de fichiers RTL est d'utiliser une filelist (extension en $#rect(fill: colors.code-bg, [.f])$) pour définir *dans quel ordre* procéder à l'élaboration et qu'on ai pas de problèmes de dépendances non résolues à cause d'un mauvais ordre. Par ailleurs, ces filelists seront #rouge("nécessaires pour les étapes suivantes") donc autant les implémenter dès maintenant.
 
+#showybox(
+  title: "Note : Utilisation des filelists",
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  L'utilisation des filelists n'est pas *un passage obligatoire*. Certaines personnes utilisent des scripts ou il appellent chaque module séparément comme dans le niveau 1.
+]
 
 #showybox(
 title: [#text(weight: "bold", fill: black, [À retenir : Séparer les rtl des tb] )],
@@ -506,12 +530,24 @@ frame: (
   Il est #rouge("primordial") de séparer les .f des modules DUT (dans le dossier *rtl*) et des testbench en deux fichiers distincts. En effet, les filelists rtl.f seront *réutilisées* par la suite dans les phases de synthèse et de pnr et ne servent pas seulement pour la simulation.
 ]
 
-Voici, ar exemple, ce que contient la filelist rtl.f : 
+\
+C'est le moment de parler d'une notion importante : Dans la suite du tutoriel tous les chemins seront indiqués #rouge[relativement à la racine du tutoriel]. Pour ce faire on va définir une variable d'environnement qui va nous permettre de spécifier le chemin *absolu* de la racine du tutoriel : 
+
+#codly(stroke: 1pt + red)
+```bash
+export DESIGN_PATH=/chemin/vers/la/racine/du/dossier
+```
+#codly(stroke: 1pt + gray)
+
+Maintenant, a chaque fois qu'on va appeler \$DESIGN_PATH le code va pourvoir retrouver le chemin depuis n'importe quel répertoire d'execution (car chemin absolu).
+
+
+Voici, par exemple, ce que contient la filelist rtl.f : 
 
 #codly(footer: [*rtl.f*], breakable: false)
 ```txt
-dut/rtl/full_adder_comb.sv
-dut/rtl/ripple_carry_4.sv
+$DESIGN_PATH/dut/rtl/full_adder_comb.sv
+$DESIGN_PATH/dut/rtl/ripple_carry_4.sv
 ```
 C'est simplement une liste de tous les modules à élaborer et simuler.
 Une fois les filelists écrites on peut lancer (depuis la racine du dossier toujours):
@@ -523,9 +559,10 @@ xrun -64bit \
   -access +rwc \
   -gui \
   -timescale 1ns/1ps \
-  -f dut/filelists/rtl.f \
-  -f dut/filelists/tb.f \
+  -f $DESIGN_PATH/dut/filelists/rtl.f \
+  -f $DESIGN_PATH/dut/filelists/tb.f \
   -top tb_ripple_carry_4
+  -mess
 ```
 #codly(stroke: 1pt + gray)
 
@@ -557,7 +594,7 @@ Si d'aventure nous avions des problèmes de simulation, cette vue graphique est 
 
 \
 #showybox(
-  title: "Note : Interface graphique",
+  title: "Note : Utilisation de l'interface graphique",
   frame: (
     border-color: blue,
     title-color: blue.lighten(30%),
@@ -565,7 +602,7 @@ Si d'aventure nous avions des problèmes de simulation, cette vue graphique est 
     footer-color: blue.lighten(80%)
   ),
 )[
-  La philosophie c'est sans interface sauf si bug.
+  Dans l'idée, on évite d'utiliser l'interface graphique et on ne l'ouvre *que pour du debuggage* si le testbench revoie #rouge[FAILED].
 ]
 
 === Ouverture de simulations précédentes
@@ -611,6 +648,9 @@ rm -rf x* waves.shm
 
 
 == Niveau 3 : Wrapper réutilisable
+
+#TODO("Avec le makefile ")
+
 #rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Fichier* : flow/01_simulation/run_sim.sh])
 
 
@@ -693,7 +733,7 @@ Maintenant que nous avons simulés notre DUT, nous pouvons passer à synthèse.
 // ******************** SECTION ******************** 
 // *************************************************
 = Etape 2 : Synthèse logique - Outil Genus
-La deuxième étape de ce parcours est donc la synthèse. C'est à cette étape que le lien avec la technologie cible va s'effectuer. Cette étape est plus complexe que la précédente car il va falloir correctement établir le lien avec le pdk et qu'il y a davantage de paramètres à prendre en compte.
+La deuxième étape de ce parcours du combatant est donc la synthèse. C'est à cette étape que le lien avec la technologie cible va s'effectuer. Cette étape est plus complexe que la précédente car il va falloir correctement établir le lien avec le pdk et qu'il y a davantage de paramètres à prendre en compte.
 
 \
 En pratique, Genus transforme un *RTL* en une *netlist composée de cellules de la bibliothèque cible*.
@@ -753,7 +793,21 @@ Dans un premier temps il est primordial de comprendre ce dont on a besoin pour l
 caption: [#text(fill: green, [*entrées*]),  #text(fill: orange, [*sorties*]) de la minimales de la synthèse logique]
 )<tab_elements_synthese>
 
-*Note :* Encore une fois, les entrées sorties présentées ici permettent d'aller au bout du flow mais sont minimales. Il est donc possible de rajouter des entrées/sorties supplémentaires comme les lef en entrée, mmmc en sortie ect.
+\ 
+#showybox(
+  title: [#text(weight: "bold", fill: black, [Note importante : Il n'y a QUE des cas particuliers] )],
+  frame: (
+    border-color: red,
+    title-color: red.lighten(30%),
+    body-color: red.lighten(95%),
+    footer-color: red.lighten(80%)
+  ),
+)[
+  Les entrées sorties présentées ici permettent d'aller au bout du flow mais il en existe d'autres! Il est donc possible de rajouter des entrées/sorties supplémentaires comme les lef en entrée, mmmc en sortie ect. dépendamment du type de flow, du pdk, de l'outil etc...
+
+  \
+  Il y a autant de manière de faire que de designer / outil / pdk etc.. Ici, ce qui est donc important c'est de #rouge[comprendre la philosophie], les briques élémentaires qu'on retrouve dans tous les types de flow.
+]
 
 \
 On ne va pas revenir sur ce que sont les fichiers `.sv` et `.f` mais voici une rapide description des autres entrées :
@@ -791,9 +845,9 @@ On ne va pas revenir sur ce que sont les fichiers `.sv` et `.f` mais voici une r
  -- bc ou ff pour best case / fast fast (temps le plus rapide) 
 
 \
-- *Fichier SDF (Standard Delay Format) * : Fichier nécessaire à Innovus pour l'extraction de parasytes dans la phase de PnR.
+- *Fichier SDF (Standard Delay Format) * : [optionnel mais fortement recommandé] - Fichier nécessaire à Innovus pour l'extraction de parasytes dans la phase de PnR. 
 
-#TODO("on peut aussi donner à Xcellium non?")
+#TODO("on peut aussi donner à Xcellium non? Autres explications")
  
 
 == Niveau 0 : L'appel direct $->$ mauvaise idée
@@ -860,29 +914,52 @@ On retrouve les grandes étapes répertoriées dans la @tab_elements_synthese :
 On vient de le voir, contrairement à la simulation, Genus nécessite d'être configuré pour correctement fonctionner. En effet, il y a davantage d'étapes : le lien avec le PDK, les différents fichiers `.f`, `.sdc` etc. et tout ceci nésessite des scripts pour être fait correctement et dans le bon ordre. 
 
 \
+*1ère étape :* se mettre dans le dossier de travail et exporter le DESIGN_PATH: 
+```bash
+cd flow/02_synthesis_genus/01_syn_minimal/workdir/
+export DESIGN_PATH=/chemin/vers/la/racine/du/dossier
+```
+
+\
 Le language de script qui va nous permettre de configurer genus est le *`.tcl`*. C'est dans ce fichier qu'on va renseigner ce que genus dois faire et dans quel ordre. Pour lancer genus en utilisant le fichier `.tcl` de configuration la commande minimale est :
 
 \
 ```bash
 genus -legacy_ui \
--file flow/02_synthesis_genus/01_syn_minimal/syn_minimal.tcl \
--log rundir/02_synthesis/logs/
+-file ../syn_minimal.tcl \
+-log ./logs/genus
 ```
 
 * Explication de la commande* : 
 - *`-legacy_ui`* : Ouvre Genus en mode *legacy* (il reconnait alors les commandes utilisées dans le script).
 - *`-file`* : Permet de dire quel fichier de script utiliser.
-- *`-log`* : Permet de spécifier ou ranger ses fichiers de log (non essentiel dans l'absolu mais *très* fortement recommandé).
+- *`-log`* : Permet de spécifier ou ranger ses fichiers de log et quel nom leurs donner (non essentiel dans l'absolu mais recommandé).
+
 
 \
-Si la variable DESGN_PATH n'a pas été exportée, on devrait avoir une sortie proche de : 
-```sh
-can't read "::env(DESIGN_PATH)": no such element in array
-Encountered problems processing file: flow/02_synthesis/01_syn_minimal/syn_minimal.tcl
-```
+#showybox(
+  title: [*Note* :],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  Si la variable DESGN_PATH n'a pas été exportée, on devrait avoir une sortie proche de : 
+  ```sh
+  can't read "::env(DESIGN_PATH)": no such element in array
+  Encountered problems processing file: flow/02_synthesis/01_syn_minimal/syn_minimal.tcl
+  ```
+]
 
-*Patatra* ! Genus ne reconnais pas les chemin des fichiers. C'est #text(fill: green, [*normal*]). Quand on regarde le script on peut voir que l'appel a genus utilise des PATH avec des variables d'environnement. Dans la logique de ce tutoriel, il faut donc d'abord exporter la variable DESIGN_PATH qui sert de référence aux autres chemins (encore une fois, ça n'est pas la seule façon de procéder). En résumé cela donne :
+=== Comment le script fonctionne
+Le script de la synthèse effectue 2 opérations principales : 
+1. Aller chercher les variables spécifiques au projet et au pdk
+2. Executer ligne par ligne les étapes de la synthèse.
 
+\
+Voici un petit schema des imbrications d'appels:
 
 \
 #figure(
@@ -906,8 +983,14 @@ frame: (
   ),
 title: [#text(fill: black, "genus")],
 [ Genus execute *ligne par ligne* les commandes du script. Il commence par charger les variables d'environnement utilisés pour la simulation (ex : *\$GENUS_SDC*) qui sont définies dans les deux fichiers *.env*:
-1. Le fichier qui défini toutes les variables liées à la techno utilisée : \$env(DESIGN_PATH)/config/conf_ihp130.lib
-2. Le fichiers de variables propre au dut : \$env(DESIGN_PATH)/dut/design.lib
+1. Le fichier qui défini toutes les variables liées à la techno utilisée : \$env(DESIGN_PATH)/config/conf_ihp130.lib. On y retrouve par exemple :
+$#rect(radius: 5pt, fill: white, "set GENUS_LIBERTY_TC chemin/vers/le/typical.lib
+set GENUS_LIBERTY_BC chemin/vers/le/best_case.lib
+. . . ")$
+2. Le fichiers de variables propre au dut : \$env(DESIGN_PATH)/dut/design.lib. On y retrouve notamment :
+$#rect(radius: 5pt, fill: white, "set GENUS_FILELIST chemin/vers/le/rtl.f             # spécifique au projet
+set GENUS_SDC chemin/vers/le/constraint.sdc        # spécifique au projet
+. . . ")$
 
 \
 Ainsi, quand on veut changer de dut, il nous suffit simplement de pointer vers un autre  design.env. De même pour changer de pdk on peut simplement changer de config.env.
@@ -921,6 +1004,7 @@ Ensuite, il déroule le flow de synthèse ligne par ligne et s'arrête en cas d'
 ],
 caption: [Imbrication des appels des fonctions de la synthèse]
 )
+
 
 \
 #showybox(
@@ -976,8 +1060,45 @@ caption: [Imbrication des appels des fonctions de la synthèse]
 ]
 
 
+\
+Une fois le script terminé, on peut ouvrir la vue graphique (normalement pas nécessaire à cette étape mais intéressant de voir ce qu'il a généré). Pour ce faire, dans genus : 
+
+```bash
+legacy_genus:/> gui_show
+```
+
+Puis selectionner la vue _Schematic_ :
+
+#v(0.5cm)
+#figure(
+  image("Img/08_genus_ouvrir_netlist.png", width: 60%),
+  caption: [Genus : comment ouvrir la vue netlist],
+)<fig-08_genus_ouvrir_netlist>#v(0.5cm)
+
+On peut alors observer la nouvelle netlist générée par genus avec cette fois-ci les noms des composants du pdk:
+
+#v(0.5cm)
+#figure(
+  image("Img/08_netlist_synthese.png", width: 100%),
+  caption: [Netlist générée par Genus],
+)<fig-08_netlist_synthese>#v(0.5cm)
+
+
+Une fois qu'on en a terminé avec Genus, on peut le fermer : 
+```bash
+legacy_genus:/> exit
+```
+
 == Comprendre les rapports
-Maintenant qu'on a fait la première synthèse, on peut regarder les résultats dans `rundir/02_synthese/nom_du_run`. On y trouve  une arborescence de ce type : 
+Maintenant qu'on a fait la première synthèse, on peut regarder les résultats dans le répertoire d'ou on a lancé Genus en tappant la commande : 
+```bash
+tree
+#ou 
+ls
+```
+
+
+On y trouve  une arborescence de ce type : 
 #set list(marker: ([•], [#sym.arrow.r.curve]))
 - *fv\/* (pour la vérification formelle, pas utilisé ici)
  - ripple_carry_4/
@@ -1003,6 +1124,7 @@ Maintenant qu'on a fait la première synthèse, on peut regarder les résultats 
 \
 - *reports\/*
  - report_area.rpt
+ - report_power.rpt
  - report_qor.rpt
  - report_timing.rpt
 
@@ -1040,9 +1162,10 @@ Une slack *négative* indique qu'on est en retard $->$ #rouge("violation des con
 
 Pour vérifier, on peut parcourir le fichier à la main ou lancer une commande du type : 
 ```bash
-grep -i "slack" \
-rundir/02_synthesis/ripple_carry_4_20260825T152355Z/reports/report_timing.rpt 
+grep -i "slack" reports/report_timing.rpt 
 ```
+
+#TODO("Pourquoi j'ai que un slack? J'ai que un seul chemin possible car mon dut est trop simple?")
 
 \
 Autres vérifications à effectuer : 
@@ -1089,6 +1212,9 @@ Autres vérifications à effectuer :
   On peut faire cette vérification à la main ou l'intégrer dans un script (cf. niveaux suivants).
 ]
 
+==== Fichier : report_power.rpt
+Indique la consommation hesitimée du circuit. Il faut bien avaoir en tête que la consommation finale et fiable du circuit sera donnée à la suite du PnR.
+
 ==== Fichier : report_area.rpt et report_qor.rpt - Aire du design
 Rapport de la surface prise par notre circuit. Il faut notamment vérifier :
 - *Aire totale* : nombre de cellules + répartition combinatoire/séquentielle
@@ -1115,99 +1241,15 @@ Genus essayera de réduire l'aire, mais ne sacrifiera pas le timing au-delà de 
 
 
 
-== Niveau 2 : script réutilisable "simple"
-#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/02_synthesis/02_typical_advanced/])
+== Niveau 2 : script plus élaboré
+#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/02_synthesis/02_sim_advanced/])
 
-Le script du niveau 1 est fonctionnel sur le papier mais en pratique il est *incomplet*. Genus permet de donner beaucoup plus d'informations sur son fonctionnement et ces rapport sont très utiles afin de repérer une erreur éventuelle. Par ailleur, un certain nombre de *vérifications basiques* comme "est ce que les chemins existent ?", "est-ce que j'ai bien accès aux outils cadence ?", "est-ce que telle ou telle commande à réussi ?" etc.
+#TODO("TODO")
 
-\ 
-Le niveau 2 permet donc, en plus de ce que fait le niveau 1, de :
-1. Faire des vérifications basiques
-2. Générer plus de rapports
-3. Encapsuler les appels de fonctions pour localiser les erreurs
-
-\
-Même si le script du niveau 2 est relativement simple en soit, il comporte des appels à plusieurs fichiers et leurs rôle doit être correctement compris. Voici donc l'architecture des appels imbriqués à cette étape.
-
-#figure(
-[#showybox(
-title: "Terminal", 
-[Terminal d'ou est lancé la commande genus. Les outils cadence sont sourcée (*xrun, genus, innovus* par exemple sont accessibles).],
-frame: (
-    border-color: black,
-    title-color: black.lighten(30%),
-    body-color: black.lighten(95%),
-    footer-color: black.lighten(80%)
-  ),
-columns(1)[
+Le script du niveau 1 est fonctionnel sur le papier mais en pratique il est *incomplet*. Notre circuit étant très simple, Genus à réussi à faire un synthèse fonctionnelle (qui respecte les timmings de contraints.sdc) tout seul. En règle générale, ça n'est pas le cas et le métier des designer numérique est justement de venir jouer sur les paramètres de genus pour orienter son travail et aboutir à une synthèse fonctionnelle. Ce travail est en général très spécifique à un projet (chaque projet ayant ses propres contraintes) et il n'y a pas une manière de faire. Ici, aller plus en détail n'a pas beaucoup d'intérêt car pour spécifier davanatge de choses à Genus il faudrait savoir *précisément ou on veut aller et ce qui ne va pas*. 
 
 #showybox(
-title-style: (boxed-style: (:)),
-title: "run_sym.sh",
-[ Le script charge les variables d'environnement utilisés pour la simulation (ex : *\$GENUS_SDC*) et lance une ou plusieurs exectution de genus. Les variables sont accessibles depuis n'importe quel programme dans le script. Le script lance notamment Genus avec comme fichier de configuration genus_advanced.tcl.
-#showybox(
-title-style: (boxed-style: (:)),
-frame: (
-  title-color: green.lighten(50%),
-  border-color: green,
-  body-color: green.lighten(95%)
-  ),
-title: [#text(fill: black, "genus_advanced.tcl")],
-[Genus utilise le fichier de configuration genus_advanced.tcl pour savoir quoi faire, dans quel ordre etc... Ce fichier utilise lui même un fichier helper.tcl
-
-#colbreak()
-#showybox(
-title-style: (boxed-style: (:)),
-frame: (
-  title-color: blue.lighten(50%),
-  border-color: blue,
-  body-color: blue.lighten(95%)
-  ),
-title: [#text(fill: black, "helper.tcl")],
-[Scripts générique qui défini des fonctions utilitaires pour les scripts tcl.]
-)
-]
-)
-]
-)
-]
-)
-],
-caption: [Imbrication des appels des fonctions du niveau 2 de la synthèse]
-)<fig-architecture_etape_2_syn>
-
-\
-*Rôle de helper.tcl*:
-
-Dans le flow numérique, un certain nombre d'opérations seront executées dans *chacun des scripts tcl* comme le renvoie d'erreur, la vérification de l'envirronnement etc. Afin d'éviter de réécrire systématiquement ces fonctions, nous pouvons les définir dans un script spécifique qui sera appelé à chaque fois (ici : helper.tcl).
-Le fichier helpers.tcl regroupe donc les utilitaires du flow. Ce fichier contient des procédures TCL pour gérer les erreurs, les logs, et les rapports. Il vérifie que toutes les variables d'environnement obligatoires sont définies avant de lancer le flow. Cela évite les erreurs cryptiques (ex: `Library not found` à cause d'une variable manquante). L'utilisation des fonctions de helper permet, entre autre, ici de faire en sorte que chaque action ai son erreur associée.
-
-=== Lancer le script 
-
-Pour lancer le script de niveau 2 il faut tapper:
-```bash
-bash flow/02_synthesis/02_typical_advanced/run_syn.sh ripple_carry_4
-```
-
-=== Lire les sorties
-De la même manière, on va regarder ce qu'il y a dans le répertoire de sortie : 
-
-`/rundir/02_synthesis/02_typical_advanced/nom_du_run`.
-
-\
-Cette fois-ci on a davantage de rapports : 
-- *reports\/*
- - check_design.rpt
- - check_timing_intent.rpt
- - final_status.rpt
- - report_area.rpt
- - report_qor.rpt
- - report_timing.rpt
- - stage_status.tsv
-
-
- #showybox(
-  title: [*Note* : Ouvrir la GUI],
+  title: [*Note* : 03_sim_gate_level],
   frame: (
     border-color: blue,
     title-color: blue.lighten(30%),
@@ -1215,87 +1257,201 @@ Cette fois-ci on a davantage de rapports :
     footer-color: blue.lighten(80%)
   ),
 )[
-  Généralement, Genus ne s'ouvre pas en vue graphique mais, en cas de besoin, voici comment le faire : 
-  ```bash
-  genus -legacy_ui  # Ouvir Genus en mode legacy (davantage de paramètres que le mode normal)
-  # Dans Genus:
-  gui_show
-  ```
+  On garde ce répertoire pour la fin du tutoriel.
+]
+
+
+= Etape 3 : Implémentation physique - Innovus 
+
+Pour cette phase, qu'on appelle indifféremment implémentation physique ou placement routage (place and route (PnR) en anglais), nous allons utiliser l'outil Innovus. Comme pour les autres logiciels, Innovus possède plusieurs version ayant chacune leur syntaxe. Nous allons utiliser Innovus avec la syntaxes *stylus* grâce à la commande :
+```bash
+innovus -stylus 
+```
+
+#showybox(
+  title: [*Note* : Stylus],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+   Stylus est un outils développé dans les dernières versions des outils par Cadence dans le but *d'unifier les phases de synthèse et de PnR*. L'objectif affiché est de permettre d'utiliser ce seul outil pour dérouler tout le flow. Ici, nous allons utiliser Innovus avec la syntaxe stylus mais il est important de comprendre qu'on ne va effectuer que le PnR avec Innovus (la synthèse ayant été réalisée avec Genus)
 
 ]
 
-==== Fichier : final_status.rpt
-Répond à la question : *Est-ce que le flow complet s'est terminé ?*
-
-C'est la première chose à regarder. C'est le verdic final de la synthèse. Si on a quelque chose de ce type c'est que tout devrait être bon : 
-
-```sh
-GENUS_STATUS=PASS
-FLOW_EXECUTION_STATUS=FLOW_COMPLETED
-ARTIFACT_STATUS=PASS
-```
-
-==== Fichier : stage_status.tsv 
-Répond à : *Quelle étape a réussi ou échoué ?*
-
-Permet de faire un listing en cas d'echec de qu'est ce qui n'a pas fontionné.
-
-==== Fichier : check_design.rpt
-Répond à : *Le design que je vais synthétiser est-il structurellement sain / cohérent ?*
-Permet de vérifier les références non résolues, drivers multiples, connexions suspectes, cellules manquantes, latches éventuels.
-
-C'est important parce qu'on pourrait très bien obtenir un report_area.rpt et un report_timing.rpt alors que le design contient un problème structurel passé sous forme de warning
-
-==== Fichier : check_timing_intent.rpt
-Répond à : *Est-ce que mes résultats timing ont réellement un sens ?*
-Permet de vérifier si on a des chemins non contraints, clocks manquantes, entrées/sorties non temporisées, problèmes SDC.
-
-Sans cette vérification, on ne pourrait pas savoir si les résultats de timing sont réellement exploitables.
- 
-
-== Niveau 3 : Script complet avec mmmc
-#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/02_synthesis/03_mmmc/])
-
-La synthèse du niveau 2 se rapproche beaucoup de quelque chose de complet mais il manque une dernière chose avant de pouvoir continuer sur le PnR : les corners. Avant de pouvoir envoyer un design en production, il faut d'abord s'assurer qu'il va fonctionner même si tel transistor est un peu plus lent, tel autre un peu plus rapide etc. C'est l'objectif du MMMC.
 
 \
-Le script du niveau 3 permet, en plus du niveau 2 de :
-1. Prendre en compte les MMMC.
-2. Utiliser en plus des scipts précédents un troisième scipt "lecture_resultats.tcl"  permettant de demander à Genus de vérifier que les rapports sont bons et que les résultats sont cohérent. Il est plus robuste d'utiliser un script .tcl que de faire une vérification avec des _grep_ dans des rapports.
+Comme pour la synthèse, l'outil Innovus va réaliser plusieurs étapes d'un seul coup parmis elles ont peut citer les plus importantes :
 
-===  MMMQUOI ?
+#figure(
+[#table(
+  columns: (auto, auto),
+  inset: 5pt,
+  align: left,
+  fill: (x, y) => if y == 0 {silver},
+  table.header(
+    [*Etape*], [*Description*],
+  ),
+  [1], [Lire le fichier MMMC avec *`read_mmmc`*],
+  [2], [Lire les fichiers du pdk décrivant le layout des standard cell avec *`read_physical`*],
+  [3], [Lire la netlist générée par Genus avec *`read_netlist`*],
+  [4], [Initialiser sa database interne avec *`init_design`* et définir un certain nombre de paramètres avec *`set_db`* notamment],
+  [5], [Générer le floorplan (#underline("ie.") quelle est la taille de la puce, ect.) avec *`create_floorplan`*],
+  [6], [Générer les pin d'entrée/sorties (IO) avec *`assign_io_pins`*],
+  [7], [Générer les éléments liées à l'alimentation (power ring, stripes)],
+  [8], [Faire le placement (#underline("ie.") ou sont les cellules) avec *`place_design`*],
+  [9], [Générer le clock tree (CTS) (#underline("ie.") comment est routé le signal de clock) avec *`ccopt_design`*],
+  [10], [Router le design (#underline("ie.") routage des cellules entre elles) avec *`route_design`*],
+  [11], [Effectuer des check avec par exemple *`check_connectivity`* ou *`check_drc`*],
+  [12], [Faire l'extraction de parasites avec *`extract_rc`* et l'enregistrer avec *`write_sdf`*],
+  [13], [Générer des rapports avec par exemple *`time_design`*],
+  [14], [Exporter le design final avec *`write_db`*],
+)],
+caption: [Etapes clés réalisées lors de l'implémentation physique]
+)<tab_etapes_pnr>
+
+\
+#rouge[Note]: Encore une fois, les étapes restent inchangées d'un flow à l'autre mais pas les commandes pour les réaliser! Entre, ces étapes, il est d'usage de générer des rapports et des saves de a database (qui permettent par la suite de reprendre à partir d'une save plutot que depuis le début)
+
+
+== Entrées et sorties
+Voici les entrées/sorties usuelle de cette phase de PnR :
+
+
+#figure(
+[#table(
+  columns: (auto, auto, auto),
+  inset: 5pt,
+  align: center,
+  fill: (x, y) => if y == 0 {silver}
+  else if y < 7 {green.lighten(80%)}
+  else if y >= 7 {orange.lighten(80%)},
+  table.header(
+    [*Élément*], [*Exemple*], [*Rôle*],
+  ),
+  [RTL synthetisé], [`ripple_carry_4_netlist.v`], [Sortie de Genus : RTL mappé avec le pdk],
+  [Contraintes synthetisée], [`ripple_carry_4_sdc.sdc`], [Sortie de Genus : contraintes temporelle mappées],
+  [Variables du pdk], [`PNR_ASPECT_RATIO` `PNR_BOTTTOM_LAYER`], [Spec. du pdk pour savoir quelle règles réspecter],
+  [MMMC], [`constraints/mmmc.tcl`], [Pour les corner (voir plus loin)],
+  [Liberty], [`typical.lib`], [Infos sur les stdcell pour le MMMC],
+  [cds.lib], [`cds.lib`], [Entre autre pour les bases OA (voir plus loin)],
+  [[optionnel] - Checkpoints], [`database format LEF ou OA`], [Pour pouvoir repartir d'une étape],
+  [Fichiers SDF], [`ripple_carry_4_delay.sdf`], [Extraction de parasites poste route],
+  [Rapports], [`report_timing.rpt`, `report_area.rpt`, `report_qor.rpt`], [Preuves à examiner],
+  [design exporté], [`ripple_carry_4_OA`], [design routé sous un format LEF ou OA],
+)],
+caption: [#text(fill: green, [*entrées*]),  #text(fill: orange, [*sorties*]) de la minimales du placement routage]
+)<tab-entree_sorties_pnr>
+
+
+=== Les MMMC
+
+#TODO("MMMC explication a revoir/edulcorer")
 
 MMMC pour Multi Mode Multi Corner est l'analyse qui permet de savoir comment répond notre design avec des erreurs de fabrications, en température etc..
 
-Les deux notions essentielles à comprendre à ce stade sont le setup et hold.
-
-
-=== Setup Time (Temps d'Établissement)
-
-*Définition* : Temps minimum avant le front montant du clock pendant lequel la donnée doit être stable pour être correctement capturée par un registre.
-
-*Violation* : Si la donnée arrive trop tard ou pas assez en avance #sym.arrow Échec de capture (métastabilité).
-
-*Corner utilisé* : Worst-Case (WC) #sym.arrow Délais maximaux (pire cas pour le setup).
-
-
-=== Hold Time (Temps de Maintien)
-
-*Définition* : Temps minimum après le front montant du clock pendant lequel la donnée doit rester stable pour éviter la métastabilité.
-
-*Violation* : Si la donnée change trop tôt #sym.arrow Échec de maintien (valeur instable).
-
-*Corner utilisé* : Best-Case (BC) #sym.arrow Délais minimaux (meilleur cas pour le hold).
+Avant de pouvoir envoyer un design en production, il faut d'abord s'assurer qu'il va fonctionner même si tel transistor est un peu plus lent, tel autre un peu plus rapide etc. C'est l'objectif du MMMC : faire des estimations de temps de passage dans les standard cell en fonction de chaque corner.
 
 \
-Pour lancer le script du niveau 3 : 
-```bash
-bash flow/02_synthesis/03_mmmc/run_syn_mmmc.sh ripple_carry_4
+Les deux notions essentielles à comprendre à ce stade sont le setup et hold:
+
+\
+*Setup Time (Temps d'Établissement)*
+
+- *Définition* : Temps minimum avant le front montant du clock pendant lequel la donnée doit être stable pour être correctement capturée par un registre.
+
+- *Violation* : Si la donnée arrive trop tard ou pas assez en avance #sym.arrow Échec de capture (métastabilité).
+
+- *Corner utilisé* : Worst-Case (WC) #sym.arrow Délais maximaux (pire cas pour le setup).
+
+\
+*Hold Time (Temps de Maintien)*
+
+- *Définition* : Temps minimum après le front montant du clock pendant lequel la donnée doit rester stable pour éviter la métastabilité.
+
+- *Violation* : Si la donnée change trop tôt #sym.arrow Échec de maintien (valeur instable).
+
+- *Corner utilisé* : Best-Case (BC) #sym.arrow Délais minimaux (meilleur cas pour le hold).
+
+
+
+
+
+=== Le format Open Access (OA) VS LEF
+Par défaut, Innovus utilise un format LEF pour écrire et lire les données physiques (qu'on pourrait vulgariser par "vue layout"). C'est cette extension qui va décrire les tailles des cellules, ou sont les pistes métaliques, quelle largeur etc...
+
+Pour faire l'implémentation physique on peut donc tout à fait donner à Innovus les vues .lef de la techno (qu'on peut retrouver dans le pdk). On entend ici un fichier qui va décrire le "layout" de chaque standard cell. Il va les comprendre et, à son tour, est capable de générer des .lef avec le floorplan complet, avec le design routé (ou son les cellules + comment elles sont reliées), avec le CTS (comment arrive le signal de clock #underline("ie.") sorte de routage spécifique à la clock car c'est l'élément le plus sensible) etc.
+
+\
+Mais il y a un gros point noir à cette méthode : les fichiers .lef ne sont pas directement lisibles par *virtuoso* (qui permet notamment de faire le LVS et de mettre le guardring (cf. plus loin)). 
+Il est donc recommandé de passer par le format *open access*. Ce format est lisible par Innovus (bien qu'il fasse une conversion en interne vers un format .lef, cette opération est transparente pour les utilisateur) *et* par Virtuoso.
+
+
+\
+Pour qu'Innovus puisse fonctionner #rouge("il a besoin d'un fichier cds.lib") dans le dossier depuis lequel il est executé. Dans ce cds.lib (pour cadence library) on retrouve tous les chemins vers les librairies utilisées par cadence (que ça soit les librairies du pdk ou bien les librairies des projets/design). Dans ce cds.lib est donc défini à un endroit le dossier des standard cell du pdk par exemple : 
+
+```lib
+DEFINE ihp130_stdcell le/chemin/absolu/vers/le/pdk
 ```
 
+Quand on va lire les librairies d'implementation physique avec Innovus on va alors non plus lui donner des lef mais directement le nom _ihp130_stdcell_ qu'il va pouvoir retrouver grâce au cds.lib (avec l'option -oa_ref_lib pour lui indiqué qu'on travaille avec des bases OA). 
+
 \
+Par la suite, on va enregistrer la base open access, non plus en format .lef mais, en format oa avec une commande du type : 
+```tcl
+write_db -oa_lib_cell_view "$oaLibDir $oaLibName imported"
+```
+
+Cette commande va créer dans le répertoire d'execution un dossier \$oaLibDir dans lequel on va retrouver une cellule (un design) \$oaLibName contenant une vue "imported" (cette vue peut être n'importe quoi mais il y a des noms usuels comme floorplan, placed, routed, pré_CTS, post_CTS etc.)
+
+\
+Si daventure, on voudrait repartir d'une database OA précédemment sauvegardée il suffit de tapper : 
+
+```bash
+  @innovus 1> read_db -oa_lib_cell_view "$oaLibDir $oaLibName placed"
+  read_db -oa_lib_cell_view "RIPPLE_CARRY_4_OA ripple_carry placed"
+
+```
+#TODO("erreur lecture")
+
+
 #showybox(
-  title: [#text(weight: "bold", fill: black, [Attention : Ne pas mettre la charue avant les boeufs] )],
+  title: [*Note* : OA *ou* LEF],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  Il est important de noter ici qu'il faut faire un choix entre travailler en format LEF ou en format OA. On ne peux pas faire les deux en même temps.
+]
+
+
+== Niveau 1 : script minimal
+#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/03_pnr/01_pnr_minimal/])
+
+Comme pour ma synthèse, l'appel direct à l'outil n'est pas possible car il y a trop d'étapes et de paramètres. Le niveau 1 donne un script minimal de placement routage dans lequel on laisse travailler Innovus #rouge[en automatique] sur une grande partie des tâches. De même que pour la synthèse, ici c'est suffisant car notre circuit est très simple mais dans le cas de plus gros circuits ça ne suffit pas $->$ il faut donner davantage d'indications à Innovus (avec des commande du type *set_db* ou des paramètres dans les appels des fonctions)
+
+\
+Pour commencer on va se placer dans le dossier de travail. Depuis la racine :
+```bash
+cd flow/03_pnr/01_pnr_minimal/workdir
+```
+
+Pour lancer innovus avec le fichier : 
+
+```bash
+# comme pour genus 
+innovus -stylus -files ../pnr_minimal.tcl -log logs/innovus
+# Pour ouvrir la gui après coup
+innovus -stylus &
+```
+
+#showybox(
+  title: [#text(fill : black, [*Note importante* : Fonctionnement de Innovus ])],
   frame: (
     border-color: red,
     title-color: red.lighten(30%),
@@ -1303,14 +1459,28 @@ bash flow/02_synthesis/03_mmmc/run_syn_mmmc.sh ripple_carry_4
     footer-color: red.lighten(80%)
   ),
 )[
-  *Ne pas lancer Innovus* si :
-  - La netlist contient des *références non résolues*
-  - Le SDC n'a pas produit les *clocks et contraintes attendues*
-  - Le choix des *corners est inconnu* (un timing positif au *seul corner typique* reste un résultat *typique*, pas une preuve MMMC)
+  Comme Genus, Innovus se lance grâce à la commande :
+  ```bash
+  innovus -stylus 
+  ```
+
+  Si on spécifie un fichier d'execution comme 
+  ```bash
+  innovus -stylus -file monfichier.tcl
+  ```
+  alors innovus va s'ouvrir en mode stylus puis executer *ligne par ligne* le script. On pourrait tout aussi bien ouvrir Innovus avec la première commande et copier coller les commandes dans l'interpréteur Innovus ligne par ligne (ou bloc d eligne par bloc de ligne) et ça en reviendrait au même.
+
+  \
+  Pour ouvir la vue graphique d'Innovus, il faut d'abord avoir initialisé la database d'innovus (#underline("ie.") avoir atteint la ligne "init_design" ou être reparti d'une sauvegarde OA) puis on peut simplement faire :
+  ```bash
+  @innovus 1> gui_show
+  @innovus 1> gui_fit
+  ```
 ]
 
- #showybox(
-  title: [*Note* : Paramétrage fin],
+
+#showybox(
+  title: [*Note* : Niveaux de métal],
   frame: (
     border-color: blue,
     title-color: blue.lighten(30%),
@@ -1318,185 +1488,84 @@ bash flow/02_synthesis/03_mmmc/run_syn_mmmc.sh ripple_carry_4
     footer-color: blue.lighten(80%)
   ),
 )[
-  Il existes une multitude de paramètres supplémentaire pour guider les 3 étapes de la synthèse plus précisément et affiner le résultat. Ici, pour des raisons de lisibilité et parceque notre design n'est pas très exigeant, on se contente de quelques paramètres et le reste est laissé en automatique. 
-
-  \
-  Pour voir quels autres paramètres on peut rentrer :
-  ```bash
-  genus -legacy_ui  # Ouvir Genus en mode legacy (davantage de paramètres que le mode normal)
-  # Dans Genus:
-  man syn_generic # Ou man syn_map ou man syn_opt
-  ``` 
+  Souvent, les standard cell utilisent le premier niveau de métal pour le routage. Il est donc usuel d'indiquer à Innovus de commencer le routage avec le niveau de métal suivant. Il est par ailleurs courant de réserver le deuxième niveau de métal à l'arbre d'horloge. On va donc commencer le routage du reste au niveau 3.
 ]
 
-= Etape 3 : Implémentation - Innovus 
+#TODO("inclure pphoto vue layout et abstract
+Notion de skew")
 
-#TODO("oa : Cadence présente justement OA comme un flow d’interopérabilité Innovus/Virtuoso")
-commade legacy vs stylus : lageacy est ce qui avait avant mais le nouiveau truc (plus homogène avec la synthese) est stylus qu'il vaut mieux utiliser
+#showybox(
+  title: [*Note* : Vue Layout vs vue abstract],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  Quand on ouvre le design dans virtuoso, on remarque que les standard cell sont en vue abstract et non en vue layout. La vue abstract est en fait une *vue layout simplifiée* ou apparaissent:
+  1. Les connections
+  2. Le niveau de métal 1
+  3. Une zone ou il est interdit de passer au dessus.
 
-DEF : 
-Le DEF généré lors de la synthèse Genus (floorplan.def) n'est pas un vrai DEF de PnR complet. C'est un DEF de synthèse qui contient :
+  Cette vue permet d'effectuer une routage fonctionnel tout en restant plus légère à lire et en preservant la propriété intélectuelle. C'est d'ailleurs pour ce dernier point que certain pdk ne contiennent pas de vue layout sur leurs standard cell. 
 
-    Les dimensions du die/core prédéfinies
-    Peut-être un placement abstrait des cellules optimisé au niveau synthèse
-    Des io_pin placés
-    Pas de routage détaillé
-
-C'est essentiellement un guide pour le PnR, pas le design complet
-
-#TODO("Mettre en forme +  rajouter dans synthse .def")
-From cadence 
-
-Input Files Definitions and Uses
-Gate level Netlist (.v) This file, which contains the logic connectivity of all the cells, is exported
-from the synthesis tool.
-Design constraints (.sdc) The .sdc file contains all the timing constraints that the tool must meet and
-fix, if there are violations in the design.
-Liberty (.lib) The .lib file is a timing library that contains logical information (setup time,
-hold time, cell delay, etc.) of all the standard cells/macros.
-Library exchange format (.lef) The LEF file is a physical library that contains physical information (cell/pin
-name, cell/pin dimensions, blockages, etc.) of the standard cells/macros.
-The LEF file is extracted from the abstract view of a cell.
-Technology LEF file (.lef) The technology LEF file contains the metal layers, vias, and their name and
-preferred directions for routing. It also has design rules for each metal
-layers.
-Extraction Technology File
-(.qrctech)
-The .qrctech file contains the values of capacitance and resistance per unit
-length of each metal layer. These RC parasitics are used to calculate net
-delays during extraction.
+  \
+  Pour envoyer un circuit en fonderie il est #rouge[impératif] de fourinir la vue layout si elle est disponnible. Si elle ne l'ai pas, il faut bien stipuler au fondeur qu'il va devoir faire le changement lui même. 
+]
 
 
-Pour lancer innovus avec le fichier : 
+#TODO("le LVS est réalise par la suite dans virtuoso ")
 
-```bash
-# comme pour genus 
-innovus -files runPnR.tcl
-# Pour ouvrir la gui après coup
-innovus -stylus &
-```
-
-#TODO(".;log vs .logv v pour verbose")
-
-commande innovis : 
- Pour lire du GDSII (binaire)read_stream mon_design.gds -layer_map gds_layer_map.txt
- Pour lire un DEF (texte)read_def mon_design.def
-
-avec ce fichier runPnR.tcl
-
-Explication claude : La database Innovus (fichier .db ou .inn) est un fichier binaire propriétaire qui stocke l'état complet de ton design : netlist, placement, routage, couches, connexions, etc. C'est le format interne d'Innovus.Elle n'est PAS créée lors de la synthèse
-`init_design` : Ici, Innovus crée sa database en mémoire. Les write_db sauvegardent des checkpoints (.db) pour reprendre plus tard.
-
-
-la version v2 utilise LEGACY et : Ton script actuel est un bon test pour vérifier que :
-
-la netlist peut être importée ;
-les LEF sont lisibles ;
-un floorplan peut être construit ;
-les cellules peuvent être placées ;
-le routeur peut produire une géométrie.
-
-Mais ce n’est pas encore un flow permettant d’obtenir une puce fonctionnelle, signoffée ou fabricable
-
-Netlist
-  ↓
-Import
-  ↓
-Floorplan
-  ↓
-Placement
-  ↓
-Routage des signaux
-  ↓
-DEF
-
-
-RTL vérifié
-  ↓
-Synthèse + DFT
-  ↓
-Équivalence logique
-  ↓
-Import MMMC
-  ↓
-Floorplan / IO / macros
-  ↓
-Réseau d’alimentation
-  ↓
-Placement et optimisation pré-CTS
-  ↓
-Clock Tree Synthesis
-  ↓
-Optimisation post-CTS
-  ↓
-Routage
-  ↓
-Extraction RC
-  ↓
-Optimisation post-route
-  ↓
-Finition physique
-  ↓
-STA / IR / EM / DRC / LVS / antenne
-  ↓
-GDS/OASIS
-  ↓
-Packaging et test
-
-== Niveau 2 : PnR complete
-Le minimal faisait essentiellement :
-
-Genus
-  ↓
-init_design
-  ↓
-floorplan
-  ↓
-placement
-  ↓
-routing
-  ↓
-DEF + netlist
-
-Le niveau complet devient :
-
-Genus
-  ↓
-MMMC BC / TC / WC
-  ↓
-floorplan
-  ↓
-power planning
-  ↓
-placement
-  ↓
-optimisation pre-CTS
-  ↓
-tie cells
-  ↓
-CTS / CCOpt
-  ↓
-analyse + optimisation post-CTS
-  ↓
-routing timing/SI/antenna aware
-  ↓
-extraction RC
-  ↓
-optimisation setup/hold post-route
-  ↓
-fillers
-  ↓
-vérifications physiques
-  ↓
-DEF + netlist + GDS
-  ↓
-timing signoff optionnel
 
 
 = Etape 4 : Simulation gate-level
-Une fois 
+#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/01_simulation/03_sim_gate_level])
 
-xrun -64bit   -sv    -access +rwc   -gui   -timescale 1ns/1ps /share/Pdk/IHP/SG13S/ixc013_stdcell/verilog/ixc013_stdcell.v /share/Pdk/IHP/SG13S/ixc013_stdcell/verilog/ixc013_primitives.v flow/03_pnr/01_pnr_minimal/workdir/outputs/ripple_carry_4.routed.v dut/rtl/tb_ripple_carry_4.sv  -sdf_cmd_file flow/01_simulation/02_simulation_gate_level/sdf_cmd_file -mess
+
+Une fois que le placement routage est terminé, il nous reste à vérifier que le design "final" est toujours fontionnel. Pour ce faire on va refaire un étape de simulation avec Xcellium mais avec deux changements majeurs : 
+1. On utilise cette fois le fichier RTL donné par Innovus avec notre module contenant les cellules standard. Pour que xrun puisse comprendre à quoi font référence les modules de cellules standard que Innovus à mis, il faut également lui indiquer les modèles comportementaux de ces cellules (il faut par exemple que quelque part xrun comprenne que le module OR3JILTX1 effectue une fonction "OU"). Pour ce faire, on va également renter en option les fichiers du PDK ou le comportement des cellules standard est décrit (facile à trouver c'est un fichier du stype stdcell.v).
+
+\
+2. On donne égalament à xrun le fichier .sdf généré par Innovus. Ce fichier spécifie point par point les retards dans les signaux à cause des ralentissment causé par le chemin de la clock (clock tree) ou bien par les parasites.
+
+\
+Dans notre cas, la commande complète ressemble à :
+```bash
+xrun -64bit \
+  -sv \
+  -access +rwc \
+  -gui \
+  -timescale 1ns/1ps \
+  /share/Pdk/IHP/SG13S/ixc013_stdcell/verilog/ixc013_stdcell.v \
+  /share/Pdk/IHP/SG13S/ixc013_stdcell/verilog/ixc013_primitives.v \
+  flow/03_pnr/01_pnr_minimal/workdir/outputs/ripple_carry_4.routed.v \
+  dut/rtl/tb_ripple_carry_4.sv \
+  -sdf_cmd_file flow/01_simulation/02_simulation_gate_level/sdf_cmd_file -mess
+```
+
+#TODO("inclure l'explication du #1 dans le testbench ")
+
+#showybox(
+  title: [*Note* : nomenclature],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  On appelle cette étape la simulation gate level et non "extract" comme on pourrait le faire en analogique car ce terme est réservé à virtuoso.
+]
+
+== Comment savoir si le fichier sdf est bien pris en compte dans la simulation ?
+Pour savoir si on simule bien le rtl placé routé c'est simple : on ne pointe que vers ce fichier et non plus vers les .sv d'avant. Pour savoir si xrun prend bien en compte le fichier sdf pour les parasites c'est moins évident. Quand ouvre la waveform, il suffit d'observer un petit décalage entre la clock et un signal synchrone. Si les signaux sont légèrement désynchronisés c'est gagné! Par exemple, on peut voir sur la @fig-07_simu_gate_level que le SDF est correctement pris en compte car cout_o est sensé monter en même temps que la clock. 
+
+#v(0.5cm)
+#figure(
+  image("Img/07_simu_gate_level.png", width: 50%),
+  caption: [Simulation gate level avec SDF pris en compte],
+)<fig-07_simu_gate_level>#v(0.5cm)
 
 
 // ===================== ANNEXES =====================
