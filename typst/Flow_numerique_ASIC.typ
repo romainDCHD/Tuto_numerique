@@ -423,7 +423,7 @@ De la même manière que un module, un testbench est aussi un module RTL qui com
 
 
 === La simulation - Niveau 1 : commande minimale 
-Une fois le RTL du full adder et de son testbench écrits (et qu'on a donc une description comportementale de nos modules), il faut effectuer la simulation. Pour ce faire on execute (après avoir chargé Cadence et les outils) *depuis le dossier "workir" de la simulation*:
+Une fois le RTL du full adder et de son testbench écrits (et qu'on a donc une description comportementale de nos modules), il faut effectuer la simulation. Pour ce faire on execute (après avoir chargé Cadence et les outils) *depuis le dossier "01_simulation_minimal" de la simulation*:
 
 
 #codly(stroke: 1pt + red)
@@ -550,7 +550,7 @@ $DESIGN_PATH/dut/rtl/full_adder_comb.sv
 $DESIGN_PATH/dut/rtl/ripple_carry_4.sv
 ```
 C'est simplement une liste de tous les modules à élaborer et simuler.
-Une fois les filelists écrites on peut lancer (depuis la racine du dossier toujours):
+Une fois les filelists écrites on peut lancer (toujours depuis le dossier "01_simulation_minimal"):
 
 #codly(stroke: 1pt + red)
 ```bash
@@ -648,52 +648,41 @@ rm -rf x* waves.shm
 
 
 == Niveau 3 : Wrapper réutilisable
-
-#TODO("Avec le makefile ")
-
-#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Fichier* : flow/01_simulation/run_sim.sh])
+#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/01_simulation/02_simulation_gate_level])
 
 
 Comme déjà mensionné précédemment, en pratique, on ne va pas lancer les commandes à la main à chaque fois car:
 1. Ça peut être source d'erreur.
-2. Il nous faut avoir un flow répétable
-3. On ne sait pas vraiment ou Xcelium stocke ses fichiers de simu, les logs, les résulats etc... 
+2. Il nous faut avoir un flow répétable et qu'on puisse facilement relancer. 
+
+C'est pourquoi on va privilégier l'utilisation d'un wrapper qui va tout automatiser pour nous. 
 
 \
-C'est pourquoi on va privilégier l'utilisation d'un wrapper qui va tout automatiser pour nous. C'est l'objectif du script run_sim.sh.
+La encore, il y a autant de façon de faire que de designer mais nous allons ici voir la méthode la plus couramment utilisée : le makefile.
+
+Nous n'allons pas revenir ici sur ce qu'est un makefile ni comment l'utiliser mais ce qu'il fait comprendre c'est qu'il permet de lancer une suite d'instruction en utilisant la balise associée. Ici par exemple, on peut lancer la simulation avec environnement graphique en faisant :
+```bash
+make run_sim
+```
+
+#rouge("Attention :") Il faut bien avoir en tête qu'il le makefile utilisé est relativement simple et qu'il faut bien veiller à exporter les PATH corrects et pointer vers les bons fichiers RTL #rouge[dans le bon ordre] pour que ça fonctionne.
 
 \
-Pour lancer le script il est d'abord nécessaire de lui dire d'ou les chemins relatifs doivent partir: 
-
-#codly(stroke: 1pt + red)
+Ensuite, une fois la simulation finie et analysée, nous pouvons nettoyer le répertoire de run avec :
 ```bash
-export DESIGN_PATH=/chemin/vers/la/racine/du/dossier
-```
-#codly(stroke: 1pt + gray)
-
-Puis on peut lancer le script sans vue graphique : 
-```bash
-bash flow/01_simulation/run_sim.sh ripple_carry_4 
+make clean
 ```
 
-Ou avec l'interface graphique : 
-
+et relancer en vue non graphique avec :
 ```bash
-bash flow/01_simulation/run_sim.sh ripple_carry_4 --gui
+make run_sim_no_gui
 ```
 
-\
-*Fonctionnalités clés du script :*
-- Utilise l'argument pour savoir quel module simuler (ici le module ripple_carry_4). Si on veut simuler un autre module il suffira de l'intégrer au code _run_sim.sh_ de la même manière que l'ripple_carry_4. Procéder ainsi permet d'éviter de s'emmêler entre les paths, d'avoir des arguments à ralonge ect... Donc, on rajoute les bons paths dans le code et on appelle simplement le bon module avec un mot clé.
-- Crée un répertoire de run propre dans : rundir/01_simulation/ripple_carry_4/
-- Si existant, supprime le contenu du run précédent afin d'éviter l'utilisation d'anciens résultats par exemple.
-- Crée une base de formes d'onde SHM consultables par SimVision dans: waves.shm/ et y enregistre les signaux du testbench et des sous-modules.
-- Redirige les fichiers générés par Xcelium vers le répertoire du run.
-- Récupère le code de retour de Xrun pour détecter si c'est une erreur de compilation, d'élaboration ou de simulation.
+
 
 \
 #showybox(
-  title: "Note : Chacun sa manière de faire",
+  title: "Note : Utilisation de script shell (.sh)",
   frame: (
     border-color: blue,
     title-color: blue.lighten(30%),
@@ -701,20 +690,12 @@ bash flow/01_simulation/run_sim.sh ripple_carry_4 --gui
     footer-color: blue.lighten(80%)
   ),
 )[
-  Ceci est un exemple de script mais il existe *autant de manières de faire que de personne*. Il ne faut surtout pas resté bloqué avec une procédure "typique" qui est illisible par d'autres.
+  Une autre méthode couramment utilisée pour automatiser la simulation est l'utilisation de scripts shell plus ou moins complexes permettant de mettre à jours les dut facilement, ranger des résultats dans des dossiers séparés, Vérifer si tous les tesbench sont fonctionnels ect..
+  
+  Ici, nous préférons utiliser le makefile car beaucoup plus simple a prendre en main et beaucoup plus proche de l'utilisation de la commande directe. 
 ]
 
-#showybox(
-  title: [#text(weight: "bold", fill: black, [Attention : source $!=$ bash] )],
-  frame: (
-    border-color: red,
-    title-color: red.lighten(30%),
-    body-color: red.lighten(95%),
-    footer-color: red.lighten(80%)
-  ),
-)[
-  Dans la logique, les commande *source* et *bash* (ou ./) servent toutes les deux à executer un processus mais la commande *source* est prévue pour *mettre à jours des variables d'environnement*. Pour cette raison, quand on execute un script il ne faut #rouge("jamais executer avec source") et toujours privilégier bash ou ./
-]
+
 #showybox(
   title: [#text(weight: "bold", fill: black, [Attention : Export dans un script] )],
   frame: (
@@ -724,8 +705,11 @@ bash flow/01_simulation/run_sim.sh ripple_carry_4 --gui
     footer-color: red.lighten(80%)
   ),
 )[
-  Si on fait `export PATH_CUSTOM=/le/chemin` dans un programme shell (ex: run_sim.sh) et qu'on l'exectute avec la commande *bash* la variable PATH_CUSTOM sera détruite à la fin de l'execution du programme. Pour éviter le l'exporter à chaque fois (elle resservira dans les autres étapes) il vaut mieux faire l'export dans le terminale directement plutôt que dans le script.
+  Si on fait "`export PATH_CUSTOM=/le/chemin`" dans un programme shell (ex: run_sim.sh) et qu'on l'exectute avec la commande *bash* la variable PATH_CUSTOM sera détruite à la fin de l'execution du programme. Pour éviter le l'exporter à chaque fois il vaut mieux faire l'export dans le terminale directement plutôt que dans le script.
 ]
+
+\
+Nous allons revenir sur la simulation gate level dans la @sec_simu_gate_level.
 
 \
 Maintenant que nous avons simulés notre DUT, nous pouvons passer à synthèse.
@@ -987,7 +971,7 @@ title: [#text(fill: black, "genus")],
 $#rect(radius: 5pt, fill: white, "set GENUS_LIBERTY_TC chemin/vers/le/typical.lib
 set GENUS_LIBERTY_BC chemin/vers/le/best_case.lib
 . . . ")$
-2. Le fichiers de variables propre au dut : \$env(DESIGN_PATH)/dut/design.lib. On y retrouve notamment :
+2. Le fichiers de variables propre au dut t: \$env(DESIGN_PATH)/dut/design.lib. On y retrouve par exemple :
 $#rect(radius: 5pt, fill: white, "set GENUS_FILELIST chemin/vers/le/rtl.f             # spécifique au projet
 set GENUS_SDC chemin/vers/le/constraint.sdc        # spécifique au projet
 . . . ")$
@@ -1517,9 +1501,71 @@ Notion de skew")
 
 #TODO("le LVS est réalise par la suite dans virtuoso ")
 
+== Ouverture du design dans Virtuoso
+
+Une fois qu'on a correctement exporté le design dans une base Open Access, on peut l'ouvrir pour la visualiser dans virtuoso.
+
+\
+Pour se faire, il faut démarrer virtuoso dans le répertoire habituel et bien penser a inclure dans le cds.lib de ce répertoire le lien vers le cds.lib dans lequel Innovus a mis le chemin vers sa base OA en rajoutant la ligne 
+```lib
+INCLUDE /chemin/vers/mon/cds.lib
+```
+
+De cette manière, virtuoso va immédiatement trouver la base OA dans son librairy manager comme on peut le voir @fig-09_virtuoso_select. 
+
+#v(0.5cm)
+#figure(
+  image("Img/09_virtuoso_select.png", width: 60%),
+  caption: [Virtuoso : ouverture base OA],
+)<fig-09_virtuoso_select>#v(0.5cm)
+
+On remarque alors que toutes les vues qu'on a enregsité y figurent et que leurs taille augmente petit à petit (normal car au fur et à mesure des étapes on rajoute des éléments). On peut par exemple ouvir la vue "routed" et on voit alors :
+
+#v(0.5cm)
+#figure(
+  image("Img/10_virtuoso_chip_complete.png", width: 60%),
+  caption: [Vue complete de la puce ripple_carry_4],
+)<fig-10_virtuoso_chip_complete>#v(0.5cm)
+
+Super! On a une puce "complete". En réalité, il y aurait plusieurs choses à rajouter ou modifier comme le filling (rajout de dummy cells entre les cellules "fonctionnelles" qu'on voit sur la @fig-10_virtuoso_chip_complete) ou bien les rails d'alim qui, ici, n'ai pas en top métal car le circuit aurait été trop petit en comparaison et qui est trop proche de la puce.
+
+\
+On remarque par ailleurs que les cellules apparaissent relativement vide par rapport à ce à quoi on pourrait s'attendre. C'est normal, en réalité, les cellules standard sont exportée en format "*abstract*" plus légé et pratique pour travailler en numérique. Si la vue layout est disponnible dans la techno cible on peut alors changer les cellules abstract en layout en faisant : *tool $->$ find/replace* puis :
+
+#v(0.5cm)
+#figure(
+  image("Img/11_replace_abs_layout.png", width: 40%),
+  caption: [Comment remplacer la vue abstract par layout],
+)<fig-11_replace_abs_layout>#v(0.5cm)
+
+On peut observer que les cellules se sont "remplie" et que les différentes couches de métaux qui les composent apparaissent (cf. @fig-12_diff_vues_layout).
+
+#v(0.5cm)
+#figure(
+  grid(
+      columns: 2,     // 2 means 2 auto-sized columns
+      align: center,
+      gutter: 15pt,    // space between columns
+      image("Img/12_vue abstract.png", width: 100%),
+      image("Img/13_vue_layout.png", width: 100%), 
+      text("(a) Vue abstract"),
+      text("(b) Vue layout"),
+  ),
+  caption: [Différence entre la vue abstract et la vue layout],
+)<fig-12_diff_vues_layout>#v(0.5cm)
+
+Ansi, notre puce "finale" ressemble à ceci :
+
+#v(0.5cm)
+#figure(
+  image("Img/14_chip_complete_layout.png", width: 60%),
+  caption: [Vue complete de la puce ripple_carry_4 après changement vers vue layout],
+)<fig-14_chip_complete_layout>#v(0.5cm)
 
 
-= Etape 4 : Simulation gate-level
+
+
+= Etape 4 : Simulation gate-level<sec_simu_gate_level>
 #rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/01_simulation/03_sim_gate_level])
 
 
