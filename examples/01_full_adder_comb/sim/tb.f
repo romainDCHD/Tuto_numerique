@@ -1,1 +1,0 @@
-examples/01_full_adder_comb/tb/tb_full_adder_comb.sv

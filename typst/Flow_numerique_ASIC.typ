@@ -802,7 +802,6 @@ On ne va pas revenir sur ce que sont les fichiers `.sv` et `.f` mais voici une r
 \
 - *Fichier SDC (Synopsys Design Constraint):* Le fichier qui va définir les contraintes de timing à respecter pour notre design. Genus a besoin du SDC pour savoir quelle fréquence il doit viser pendant la synthèse. 
 
-#TODO("Si il voit que le timing n'est pas respecté, il se passe quoi?")
 
 #showybox(
   title: [*Note* : Pourquoi un fichier .sdc en entrée et un autre en sortie ?],
@@ -829,10 +828,8 @@ On ne va pas revenir sur ce que sont les fichiers `.sv` et `.f` mais voici une r
  -- bc ou ff pour best case / fast fast (temps le plus rapide) 
 
 \
-- *Fichier SDF (Standard Delay Format) * : [optionnel mais fortement recommandé] - Fichier nécessaire à Innovus pour l'extraction de parasytes dans la phase de PnR. 
+- *Fichier SDF (Standard Delay Format) * : [optionnel] - Fichier pour faire des simulations après extractions de parasites. Après la synthèse ça n'a pas beaucoup d'intérêt car ce qui nous intéresse c'est l'extraction de parasites *après placement routage*. 
 
-#TODO("on peut aussi donner à Xcellium non? Autres explications")
- 
 
 == Niveau 0 : L'appel direct $->$ mauvaise idée
 
@@ -1101,7 +1098,7 @@ On y trouve  une arborescence de ce type :
 
  \
 - *outputs\/* (les sorties utilisées par la suite dans le PnR)
- - ripple_carry_4_delays.sdf
+ - ( ripple_carry_4_delays.sdf )
  - ripple_carry_4_netlist.v
  - ripple_carry_4_sdc.sdc
 
@@ -1135,7 +1132,6 @@ La procédure typique est :
 \
 Mais alors comment lire les rapports et a quoi correspondent ils ?
 
-#TODO("stylus, reagarder les rpt nécessaire?")
 
 ==== Fichier : report_timing.rpt - le timing
 Comme son nom l'indique c'est dans ce fichier qu'on retrouve les informations relatives au timing. C'est ici que l'on voit si le timing respecte les contraintes définies dans le sdc. 
@@ -1146,20 +1142,12 @@ Une slack *négative* indique qu'on est en retard $->$ #rouge("violation des con
 
 Pour vérifier, on peut parcourir le fichier à la main ou lancer une commande du type : 
 ```bash
+cd workdir # Si pas déjà fait
 grep -i "slack" reports/report_timing.rpt 
 ```
 
-#TODO("Pourquoi j'ai que un slack? J'ai que un seul chemin possible car mon dut est trop simple?")
-
 \
-Autres vérifications à effectuer : 
-- *WNS* (Worst Negative Slack) = pire slack
-- *TNS* (Total Negative Slack) = somme des slacks négatifs
-- Les clocks et les unités sont celles attendues
-- Aucun chemin important n'est non contraint
-- Les ports reçoivent bien délais, transitions et charges
-- Les exceptions ciblent les objets voulus
-- Les violations de transition, capacitance et fanout sont *séparées* des violations de timing
+Dans cet exemple on peut voir qu'on a un seul path/chemin pour les données mais dans un circuit plus élaboré on va en avoir beaucoup. Dans ce cas le rapport sera trié du chemin avec la plus mauvaise slack à la meilleure (on peut également lui mettre en paramètres combien de path maximum il met dans le rapport). 
 
 #showybox(
   title: [*Note* : La slack],
@@ -1197,15 +1185,17 @@ Autres vérifications à effectuer :
 ]
 
 ==== Fichier : report_power.rpt
-Indique la consommation hesitimée du circuit. Il faut bien avaoir en tête que la consommation finale et fiable du circuit sera donnée à la suite du PnR.
+Indique la consommation hesitimée du circuit. Il faut bien avoir en tête que la consommation finale et fiable du circuit sera donnée à la suite du PnR. Ici, la synthèse donne déjà une bonne héstimation qui est déjà sous-évaluée. Si la consommation est trop importante pour les spécs à cette étape, ça ne sert à rien d'aller plus loin et il faut retravailler la synthèse ou le RTL avant de continuer.
 
 ==== Fichier : report_area.rpt et report_qor.rpt - Aire du design
 Rapport de la surface prise par notre circuit. Il faut notamment vérifier :
 - *Aire totale* : nombre de cellules + répartition combinatoire/séquentielle
 - *Cellules non mappées* : doit être à 0
 
+Pareil que pour la consommation, si l'aire est trop grande à cette étape c'est bloquant $->$ il faut retravailler le script de synthèse ou le design RTL.
+
 #showybox(
-  title: [*Note* :],
+  title: [*Note* : Aire vs timing],
   frame: (
     border-color: blue,
     title-color: blue.lighten(30%),
@@ -1220,29 +1210,18 @@ Rapport de la surface prise par notre circuit. Il faut notamment vérifier :
   ```
 Genus essayera de réduire l'aire, mais ne sacrifiera pas le timing au-delà de la marge définie par syn_timing_slack_margin.
 
+\
+Ceci est un exemple de maitre de l'outil plus fin qu'on peut attendre dans un niveau 2 de synthèse plus avancé.
 ]
-
-
-
 
 == Niveau 2 : script plus élaboré
-#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/02_synthesis/02_sim_advanced/])
 
-#TODO("TODO")
+Le script du niveau 1 est fonctionnel sur le papier mais en pratique il est *incomplet*. Notre circuit étant très simple, Genus à réussi à faire un synthèse fonctionnelle (qui respecte les timmings de contraints.sdc) tout seul. En règle générale, ça n'est pas le cas et le métier des designer numérique est justement de venir jouer sur les paramètres de genus pour orienter son travail et aboutir à une synthèse fonctionnelle. Ce travail est en général très spécifique à un projet (chaque projet ayant ses propres contraintes) et il n'y a pas une manière de faire. 
 
-Le script du niveau 1 est fonctionnel sur le papier mais en pratique il est *incomplet*. Notre circuit étant très simple, Genus à réussi à faire un synthèse fonctionnelle (qui respecte les timmings de contraints.sdc) tout seul. En règle générale, ça n'est pas le cas et le métier des designer numérique est justement de venir jouer sur les paramètres de genus pour orienter son travail et aboutir à une synthèse fonctionnelle. Ce travail est en général très spécifique à un projet (chaque projet ayant ses propres contraintes) et il n'y a pas une manière de faire. Ici, aller plus en détail n'a pas beaucoup d'intérêt car pour spécifier davanatge de choses à Genus il faudrait savoir *précisément ou on veut aller et ce qui ne va pas*. 
+\
+Ici, aller plus en détail sur le script de synthèse n'a pas beaucoup d'intérêt car pour spécifier davantage de choses à Genus il faudrait savoir *précisément ou on veut aller et ce qui ne va pas*. 
 
-#showybox(
-  title: [*Note* : 03_sim_gate_level],
-  frame: (
-    border-color: blue,
-    title-color: blue.lighten(30%),
-    body-color: blue.lighten(95%),
-    footer-color: blue.lighten(80%)
-  ),
-)[
-  On garde ce répertoire pour la fin du tutoriel.
-]
+Dans l'idée, quand la synthèse devient plus complexe, on va séparer le flow en plusieurs scripts et les lancer l'un à la suite de l'autre. De même que pour l'implémentation, il n'est pas très pertinent ici de mettre un exemple de flow plus maitrisé car les commandes et les outils peuvent vite évoluer. Ce qui est important c'est de bien comprendre #rouge("quelles sont les étapes importantes de la synthèse") et donc qu'est ce que je peux modifier / sur quoi je peux jouer.
 
 
 = Etape 3 : Implémentation physique - Innovus 
@@ -1394,11 +1373,9 @@ Cette commande va créer dans le répertoire d'execution un dossier \$oaLibDir d
 Si daventure, on voudrait repartir d'une database OA précédemment sauvegardée il suffit de tapper : 
 
 ```bash
-  @innovus 1> read_db -oa_lib_cell_view "$oaLibDir $oaLibName placed"
-  read_db -oa_lib_cell_view "RIPPLE_CARRY_4_OA ripple_carry placed"
-
+  @innovus 1> read_db -oa_lib_cell_view \
+     "RIPPLE_CARRY_4_OA ripple_carry floorplan"
 ```
-#TODO("erreur lecture")
 
 
 #showybox(
@@ -1463,43 +1440,20 @@ innovus -stylus &
 ]
 
 
-#showybox(
-  title: [*Note* : Niveaux de métal],
-  frame: (
-    border-color: blue,
-    title-color: blue.lighten(30%),
-    body-color: blue.lighten(95%),
-    footer-color: blue.lighten(80%)
-  ),
-)[
-  Souvent, les standard cell utilisent le premier niveau de métal pour le routage. Il est donc usuel d'indiquer à Innovus de commencer le routage avec le niveau de métal suivant. Il est par ailleurs courant de réserver le deuxième niveau de métal à l'arbre d'horloge. On va donc commencer le routage du reste au niveau 3.
-]
 
-#TODO("inclure pphoto vue layout et abstract
-Notion de skew")
+== Notions importantes à connaitre
+=== Niveau de métaux utilisés
+Souvent, les standard cell utilisent le premier niveau de métal pour le routage. Il est donc usuel d'indiquer à Innovus de commencer le routage avec le niveau de métal suivant. Il est par ailleurs courant de réserver le deuxième niveau de métal à l'arbre d'horloge. On va donc commencer le routage du reste au niveau 3.
 
-#showybox(
-  title: [*Note* : Vue Layout vs vue abstract],
-  frame: (
-    border-color: blue,
-    title-color: blue.lighten(30%),
-    body-color: blue.lighten(95%),
-    footer-color: blue.lighten(80%)
-  ),
-)[
-  Quand on ouvre le design dans virtuoso, on remarque que les standard cell sont en vue abstract et non en vue layout. La vue abstract est en fait une *vue layout simplifiée* ou apparaissent:
-  1. Les connections
-  2. Le niveau de métal 1
-  3. Une zone ou il est interdit de passer au dessus.
+=== skew
+Le *skew* est le retard d'arrivée du front montant de l'horloge du à la propagation. On pourrait penser de prim abord que ce retard est indésirable mais il est parfois très pratique (et même induit exprès par innovus)! Par exemple, sur la @fig-15_skew on peut voir que les data vont de gauche à doite. Si la clk arrivait également de gauche à droite à ce moment là, la valeur pourrait passer de la bascule 1 à 2 mais serait bloquée ensuite car le front d'horloge serait passé avant que le temps de setup soit respecté.
+#TODO("revoir ce truc")
 
-  Cette vue permet d'effectuer une routage fonctionnel tout en restant plus légère à lire et en preservant la propriété intélectuelle. C'est d'ailleurs pour ce dernier point que certain pdk ne contiennent pas de vue layout sur leurs standard cell. 
-
-  \
-  Pour envoyer un circuit en fonderie il est #rouge[impératif] de fourinir la vue layout si elle est disponnible. Si elle ne l'ai pas, il faut bien stipuler au fondeur qu'il va devoir faire le changement lui même. 
-]
-
-
-#TODO("le LVS est réalise par la suite dans virtuoso ")
+#v(0.5cm)
+#figure(
+  image("Img/15_skew.png", width: 60%),
+  caption: [Exemple typique de l'utilité du skew],
+)<fig-15_skew>#v(0.5cm)
 
 == Ouverture du design dans Virtuoso
 
@@ -1540,6 +1494,28 @@ On remarque par ailleurs que les cellules apparaissent relativement vide par rap
 
 On peut observer que les cellules se sont "remplie" et que les différentes couches de métaux qui les composent apparaissent (cf. @fig-12_diff_vues_layout).
 
+
+#showybox(
+  title: [*Récap* : Vue Layout vs vue abstract],
+  frame: (
+    border-color: blue,
+    title-color: blue.lighten(30%),
+    body-color: blue.lighten(95%),
+    footer-color: blue.lighten(80%)
+  ),
+)[
+  Quand on ouvre le design dans virtuoso, on remarque que les standard cell sont en vue abstract et non en vue layout. La vue abstract est en fait une *vue layout simplifiée* ou apparaissent:
+  1. Les connections
+  2. Le niveau de métal 1
+  3. Une zone ou il est interdit de passer au dessus.
+
+  Cette vue permet d'effectuer une routage fonctionnel tout en restant plus légère à lire et en preservant la propriété intélectuelle. C'est d'ailleurs pour ce dernier point que certain pdk ne contiennent pas de vue layout sur leurs standard cell. 
+
+  \
+  Pour envoyer un circuit en fonderie il est #rouge[impératif] de fourinir la vue layout si elle est disponnible. Si elle ne l'est pas, il faut bien stipuler au fondeur qu'il va devoir faire le changement lui même. 
+]
+
+
 #v(0.5cm)
 #figure(
   grid(
@@ -1566,7 +1542,7 @@ Ansi, notre puce "finale" ressemble à ceci :
 
 
 = Etape 4 : Simulation gate-level<sec_simu_gate_level>
-#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/01_simulation/03_sim_gate_level])
+#rect(fill: blue.lighten(90%) , stroke: blue, radius: 5pt, [*Dossier* : flow/01_simulation/02_simulation_gate_level])
 
 
 Une fois que le placement routage est terminé, il nous reste à vérifier que le design "final" est toujours fontionnel. Pour ce faire on va refaire un étape de simulation avec Xcellium mais avec deux changements majeurs : 
@@ -1590,8 +1566,6 @@ xrun -64bit \
   -sdf_cmd_file flow/01_simulation/02_simulation_gate_level/sdf_cmd_file -mess
 ```
 
-#TODO("inclure l'explication du #1 dans le testbench ")
-
 #showybox(
   title: [*Note* : nomenclature],
   frame: (
@@ -1604,6 +1578,44 @@ xrun -64bit \
   On appelle cette étape la simulation gate level et non "extract" comme on pourrait le faire en analogique car ce terme est réservé à virtuoso.
 ]
 
+== Attention au testbench
+On a vu que la simulation gate level utilisait le même testbench que pour la simulation RTL. Mais attention, quelque chose à changé #sym.arrow on a rajouté des délais et, entre autres, des *imprescisions sur l'arrivée de l'horloge*. Ainsi, si Pour vérifier que notre design fonctionne on lit la valeur de sortie exactement au front d'horloge, on a de grandes chances qu'elle ne soit pas encore arrivée!!!
+
+C'est pourquoi il est #rouge("primordial") de prendre ce délais en compte en introduisant par exemple un temps mort avant la lecture comme on peut le voir dans le testbench : 
+#codly(breakable: false, skips: ((1, 53),), highlights: ((line: 59, start: 8, end: none, fill: green),), footer: [*Extrait de tb_ripple_carry_4.sv*],)
+```sv
+    task automatic check_result(
+        input integer test_id,
+        input logic [4:0] expected,
+        input string detail
+    );
+       #1;
+       
+        if ({cout_o, sum_o} !== expected) begin
+            errors = errors + 1;
+
+            $display(
+                "[TEST_FAILED] TEST %0d : %s | resultat=%0d attendu=%0d",
+                test_id,
+                detail,
+                {cout_o, sum_o},
+                expected
+            );
+        end
+        else begin
+            $display(
+                "[TEST_PASS] TEST %0d : %s | resultat=%0d",
+                test_id,
+                detail,
+                {cout_o, sum_o}
+            );
+        end
+
+    endtask
+
+```
+
+
 == Comment savoir si le fichier sdf est bien pris en compte dans la simulation ?
 Pour savoir si on simule bien le rtl placé routé c'est simple : on ne pointe que vers ce fichier et non plus vers les .sv d'avant. Pour savoir si xrun prend bien en compte le fichier sdf pour les parasites c'est moins évident. Quand ouvre la waveform, il suffit d'observer un petit décalage entre la clock et un signal synchrone. Si les signaux sont légèrement désynchronisés c'est gagné! Par exemple, on peut voir sur la @fig-07_simu_gate_level que le SDF est correctement pris en compte car cout_o est sensé monter en même temps que la clock. 
 
@@ -1614,59 +1626,13 @@ Pour savoir si on simule bien le rtl placé routé c'est simple : on ne pointe q
 )<fig-07_simu_gate_level>#v(0.5cm)
 
 
-// ===================== ANNEXES =====================
-#heading(numbering: none, outlined: true)[Annexes]
+// // ===================== ANNEXES =====================
+// #heading(numbering: none, outlined: true)[Annexes]
 
-// Définir une autre façon de numéroter pour les annexes
-#set heading(
-  numbering: (..nums) => {
-    return "A." + numbering("1 ", nums.pos().last())
-  },supplement: [Annexe], outlined: false
-)
-
-
-// ----------------- SOUS-SECTION ------------------ 
-== Nomenclature classique dans les PDK <ann-nomenclature>
-Il peut être trsè compliqué de se retrouver dans un PDK quand on a pas l'habitude des acronymes. Voici donc quelques indications générales qui peuvent s'avérer utile
-
-#figure(
-[#table(
-  columns: (auto, auto, auto),
-  inset: 5pt,
-  align: center,
-  fill: (x, y) => if y == 0 {silver},
-  table.header(
-    [*Partie du nom*], [*Signification*], [*Exemple techno tsmc65n*],
-  ),
-  [tc], [Timing Corner (fichiers pour la synthèse/PnR)], [tcbn65lp_200a],
-  [tef], [Timing Effective (variante pour l’analyse timing)], [tef65lp32x1s_i_200a],
-  [tp], [Timing Pessimistic (corner lent, pour le worst-case)], [tpan65lpnv2od3_200a],
-  [bn], [Bulk NMOS (type de transistor)], [tcbn65lp_200a],
-  [65lp], [65nm Low Power (mais peut correspondre à un kit 130nm pour des raisons de compatibilité)], [Tous tes dossiers],
-  [nv], [Non-Volatile (pour les mémoires)], [tpan65lpnv2od3_200a],
-  [esd], [ElectroStatic Discharge (protection contre les décharges)], [tef65lpesd_p_200a],
-  [200a / 140c / 141a], [Version du kit de design (200a = plus récent, 140c = plus ancien)], [Tous tes dossiers],
-  [_i_], [Input (fichiers pour les entrées)], [tef65lp32x1s_i_200a],
-  [32x1s], [Variante spécifique (ex: 32 bits, 1 supply voltage)], [tef65lp32x1s_i_200a],
-)],
-caption: [Signification des noms de fichiers]
-)<tab_noms_fichiers>
-
-Pour les modèles de modélisation dans les pdk on peut retrouver deux types : 
-
-#figure(
-[#table(
-  columns: (auto, auto, auto, auto, auto),
-  inset: 5pt,
-  align: center,
-  fill: (x, y) => if y == 0 {silver},
-  table.header(
-    [*Modèle*], [*Signification*], [*Type*], [*Précision*], [*Complexité*],
-  ),
-  [ECSM], [Effective Current Source Model], [Modèle basé sur les courants], [Très élevée], [Élevée],
-  [NLDM], [Non-Linear Delay Model], [Modèle basé sur les tables de lookup], [Élevée], [Modérée],
-)],
-caption: [Comparaison de deux modèles de parasites courants]
-)<tab_modeles>
-
+// // Définir une autre façon de numéroter pour les annexes
+// #set heading(
+//   numbering: (..nums) => {
+//     return "A." + numbering("1 ", nums.pos().last())
+//   },supplement: [Annexe], outlined: false
+// )
 

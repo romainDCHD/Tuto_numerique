@@ -190,7 +190,7 @@
     #align(center, [
       // Titre
        #v(2cm)
-      #text(size: 40pt, weight: "bold", title)
+      #text(size: 30pt, weight: "bold", title)
 
       #v(1cm)
       // Logo (si présent)
@@ -219,16 +219,16 @@
       // Liste des auteurs
       #for (nom, affiliation, email) in authors {
         [
-          #nom #h(0.2cm) (#affiliation) 
+          #text(size : 15pt, [#nom #h(0.2cm) (#affiliation)  
           #if email != none [
             // #footnote(email)
             #h(0.2cm)#footnote(link("mailto:" + email, email)) \
-          ]
+          ]])
         ]
       }
 
       // Date
-      #v(2cm)
+      #v(3cm)
       // #text(size: 20pt, date)
       #text(size: 20pt, [Dernière modification:])
 
