@@ -1,0 +1,17 @@
+############################################
+#  Configuration des PATH spécifiques au DUT
+############################################
+
+set TOP_MODULE ripple_carry_4
+
+set GENUS_FILELIST "$env(DESIGN_PATH)/dut/filelists/rtl.f"
+set GENUS_SDC "$env(DESIGN_PATH)/dut/constraints/constraints.sdc"
+
+# Paramètres pour le PnR
+set PNR_MMMC "$env(DESIGN_PATH)/dut/constraints/mmmc.tcl"
+
+set PNR_ASPECT_RATIO "1.0"
+set PNR_CORE_UTILIZATION "0.60"
+set PNR_CORE_MARGIN "5.0"
+set PNR_POWER_NET "VDD!"
+set PNR_GROUND_NET "VSS!"

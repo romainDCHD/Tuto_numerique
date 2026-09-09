@@ -1,0 +1,9 @@
+# Chemin vers le cds.lib charge par virtuoso : /share/Projets/IHP/ihp130/rduchadeau/cds_rev1.13.0/cds.lib
+# Librairies du PDK pour les bases OA
+SOFTINCLUDE ${IHP_TECH}/env/cds.lib_composite
+INCLUDE $IHP_TECH/../cds.lib_digital
+DEFINE ixc013_stdcell $IHP_TECH/../ixc013_stdcell/oa/ixc013_stdcell
+DEFINE ixc013ng_stdcell $IHP_TECH/../ixc013ng_stdcell/oa/ixc013ng_stdcell
+# Bases OA que rajoute Innovus
+# FEOADesignlib est toujours ajoutée par Innovus. Ne pas enlever.
+DEFINE RIPPLE_CARRY_4_OA RIPPLE_CARRY_4_OA

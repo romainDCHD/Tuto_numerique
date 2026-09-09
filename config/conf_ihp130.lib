@@ -1,0 +1,68 @@
+# PATH vers le PDK utilisé:
+# 1. /share/Pdk/IHP/SG13S/ixc013_stdcell
+# 2. /share/Pdk/IHP/SG13S/SG13S_618_rev1.13.0
+
+# Profil technologique de reference
+set TECHNOLOGY_NAME IHP130
+set TECHNOLOGY_STACK ixc013
+set STDCELL_FAMILY JILT
+set STDCELL_SITE CoreSite
+set IHP_TECH /share/Pdk/IHP/SG13S/SG13S_618_rev1.13.0
+
+set STDCELL_POWER_PIN VDD
+set STDCELL_GROUND_PIN GND
+# set STDCELL_POWER_PIN \VDD!
+# set STDCELL_GROUND_PIN \GND!
+
+set SIGNAL_BOTTOM_LAYER Metal1
+set SIGNAL_TOP_LAYER Metal5
+
+# Ring : Metal 4 et 5 car plus petits 
+set POWER_RING_H_LAYER Metal5
+set POWER_RING_V_LAYER Metal4 
+# On prend volontairement environ 2x la largeur minimale
+# pour avoir un ring clairement identifiable et plus robuste.
+set POWER_RING_WIDTH   0.40
+set POWER_RING_SPACING 0.42
+set POWER_RING_OFFSET  0.60
+# Stripe verticale :
+set POWER_STRIPE_LAYER   Metal4
+set POWER_STRIPE_WIDTH   0.40
+set POWER_STRIPE_SPACING 0.42
+
+# Position de depart depuis le bord gauche.
+# Cette valeur pourra etre ajustee suivant la taille du core.
+set POWER_STRIPE_OFFSET  20.00
+
+
+# Genus
+set GENUS_LIBERTY_TC /share/Pdk/IHP/SG13S/ixc013_stdcell/lib/ixc013_stdcell_typ_1p20V_25C.lib
+set GENUS_LIBERTY_BC /share/Pdk/IHP/SG13S/ixc013_stdcell/lib/ixc013_stdcell_fast_1p32V_m40C.lib
+set GENUS_LIBERTY_WC /share/Pdk/IHP/SG13S/ixc013_stdcell/lib/ixc013_stdcell_slow_1p08V_125C.lib
+set GENUS_LEF_TECH /share/Pdk/IHP/SG13S/ixc013_stdcell/lef/ixc013_tech.lef
+set GENUS_LEF_STDCELL /share/Pdk/IHP/SG13S/ixc013_stdcell/lef/ixc013_stdcell_v5p7.lef
+set GENUS_QRC_TC /share/Pdk/IHP/SG13S/SG13S_618_rev1.13.0/PVS_SG13/qrc/qrcTechFile
+set GENUS_QRC_BC /share/Pdk/IHP/SG13S/SG13S_618_rev1.13.0/PVS_SG13/qrc/qrcTechFile
+set GENUS_QRC_WC /share/Pdk/IHP/SG13S/SG13S_618_rev1.13.0/PVS_SG13/qrc/qrcTechFile
+set GENUS_TEMPERATURE_TC 25
+set GENUS_TEMPERATURE_BC -40
+set GENUS_TEMPERATURE_WC 125
+
+# Innovus
+set INNOVUS_TECH_LEF /share/Pdk/IHP/SG13S/ixc013_stdcell/lef/ixc013_tech.lef
+set INNOVUS_STDCELL_LEF /share/Pdk/IHP/SG13S/ixc013_stdcell/lef/ixc013_stdcell_v5p7.lef
+set INNOVUS_LIBERTY_TC /share/Pdk/IHP/SG13S/ixc013_stdcell/lib/ixc013_stdcell_typ_1p20V_25C.lib
+set INNOVUS_LIBERTY_BC /share/Pdk/IHP/SG13S/ixc013_stdcell/lib/ixc013_stdcell_fast_1p32V_m40C.lib
+set INNOVUS_LIBERTY_WC /share/Pdk/IHP/SG13S/ixc013_stdcell/lib/ixc013_stdcell_slow_1p08V_125C.lib
+set INNOVUS_QRC_TC /share/Pdk/IHP/SG13S/SG13S_618_rev1.13.0/PVS_SG13/qrc/qrcTechFile
+set INNOVUS_QRC_BC /share/Pdk/IHP/SG13S/SG13S_618_rev1.13.0/PVS_SG13/qrc/qrcTechFile
+set INNOVUS_QRC_WC /share/Pdk/IHP/SG13S/SG13S_618_rev1.13.0/PVS_SG13/qrc/qrcTechFile
+set INNOVUS_STDCELL_GDS /share/Pdk/IHP/SG13S/ixc013_stdcell/gds/ixc013_stdcell.gds
+set INNOVUS_TEMPERATURE_TC 25
+set INNOVUS_TEMPERATURE_BC -40
+set INNOVUS_TEMPERATURE_WC 125
+
+
+# XRUN_stdcell=/share/Pdk/IHP/SG13S/ixc013_stdcell/verilog/ixc013_stdcell.v
+# XRUN_prim=/share/Pdk/IHP/SG13S/ixc013_stdcell/verilog/ixc013_primitives.v
+

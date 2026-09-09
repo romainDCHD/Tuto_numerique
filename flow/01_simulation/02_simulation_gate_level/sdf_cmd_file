@@ -1,0 +1,4 @@
+SDF_FILE = "$env(DESIGN_PATH)/flow/03_pnr/01_pnr_minimal/workdir/outputs/ripple_carry_4_routed.sdf",
+SCOPE = tb_ripple_carry_4.dut,
+MTM_CONTROL = "MAXIMUM",
+LOG_FILE = "sim_gate_level.log";
